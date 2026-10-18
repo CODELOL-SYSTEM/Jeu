@@ -3,48 +3,38 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080808">
   <title>Jeux entre potes</title>
-
   <style>
     :root {
+      color-scheme: dark;
       --bg: #080808;
-      --panel: #111111;
-      --panel-hover: #191919;
-      --white: #f5f5f5;
-      --muted: #888888;
-      --border: #292929;
-      --radius: 15px;
+      --panel: #121212;
+      --border: #2b2b2b;
+      --text: #f5f5f5;
+      --muted: #999;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; }
 
     body {
+      margin: 0;
       min-height: 100vh;
       background: var(--bg);
-      color: var(--white);
+      color: var(--text);
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    button, input {
-      font: inherit;
-    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
 
-    button {
-      cursor: pointer;
-    }
-
-    .topbar {
-      height: 76px;
+    header {
+      height: 72px;
       padding: 0 6%;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       border-bottom: 1px solid var(--border);
     }
 
@@ -52,741 +42,429 @@
       display: flex;
       align-items: center;
       gap: 11px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 900;
-      letter-spacing: 1.5px;
+      letter-spacing: 1.4px;
     }
 
     .brand-icon {
-      display: grid;
-      place-items: center;
       width: 35px;
       height: 35px;
-      border-radius: 10px;
+      display: grid;
+      place-items: center;
       background: white;
       color: black;
-      font-size: 19px;
+      border-radius: 9px;
+      font-size: 20px;
     }
 
-    .online-label {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .online-dot {
-      display: inline-block;
-      width: 7px;
-      height: 7px;
-      margin-right: 6px;
-      border-radius: 50%;
-      background: #fff;
-    }
+    .status { color: var(--muted); font-size: 12px; }
 
     main {
-      width: min(100% - 32px, 960px);
+      width: min(100% - 32px, 680px);
       margin: 0 auto;
-      padding: 60px 0 80px;
+      padding: 55px 0 75px;
     }
 
-    .screen {
-      display: none;
-      animation: appear 0.22s ease;
-    }
+    .screen { display: none; }
+    .screen.active { display: block; }
 
-    .screen.active {
-      display: block;
-    }
+    .hero { text-align: center; margin: 25px 0 45px; }
 
-    @keyframes appear {
-      from {
-        opacity: 0;
-        transform: translateY(7px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .hero {
-      max-width: 690px;
-      margin: 40px auto 55px;
-      text-align: center;
-    }
-
-    .eyebrow {
+    .tag {
       display: inline-block;
       padding: 8px 12px;
-      margin-bottom: 22px;
-      border: 1px solid #333;
+      margin-bottom: 20px;
+      border: 1px solid #383838;
       border-radius: 30px;
-      color: #c5c5c5;
-      font-size: 11px;
+      color: #ccc;
+      font-size: 10px;
       font-weight: bold;
-      letter-spacing: 1.7px;
-      text-transform: uppercase;
+      letter-spacing: 1.5px;
     }
 
     h1 {
-      font-size: clamp(38px, 7vw, 70px);
-      line-height: 1.04;
-      font-weight: 900;
-      letter-spacing: -3px;
+      margin: 0;
+      font-size: clamp(38px, 8vw, 66px);
+      line-height: 1.05;
+      letter-spacing: -2.5px;
     }
 
-    .hero h1 span {
-      color: #777;
-    }
+    h1 span { color: #777; }
 
-    .hero p {
-      max-width: 450px;
-      margin: 22px auto 0;
-      color: #999;
-      font-size: 15px;
+    .subtitle {
+      max-width: 440px;
+      margin: 18px auto 0;
+      color: var(--muted);
+      font-size: 14px;
       line-height: 1.8;
     }
 
     .actions {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 15px;
-      max-width: 650px;
-      margin: 0 auto;
+      gap: 14px;
     }
 
-    .action-card {
-      min-height: 190px;
-      padding: 25px;
+    .action {
+      padding: 24px;
+      min-height: 175px;
       text-align: left;
       color: white;
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      transition: 0.2s ease;
+      border-radius: 14px;
+      transition: .2s;
     }
 
-    .action-card:hover {
-      background: var(--panel-hover);
-      border-color: #666;
-      transform: translateY(-3px);
-    }
+    .action:hover { background: #1b1b1b; border-color: #777; }
 
     .action-icon {
+      width: 42px;
+      height: 42px;
       display: grid;
       place-items: center;
-      width: 43px;
-      height: 43px;
-      margin-bottom: 25px;
-      border-radius: 12px;
-      background: #f5f5f5;
-      color: #080808;
+      margin-bottom: 22px;
+      background: white;
+      color: black;
+      border-radius: 10px;
       font-size: 23px;
-      font-weight: bold;
     }
 
-    .action-card h2 {
-      margin-bottom: 9px;
-      font-size: 19px;
-    }
+    .action h2 { margin: 0 0 8px; font-size: 18px; }
+    .action p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 
-    .action-card p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .bottom-note {
-      margin-top: 35px;
-      color: #626262;
-      text-align: center;
-      font-size: 12px;
-    }
-
-    .form-wrap {
-      width: min(100%, 430px);
-      margin: 15px auto;
-    }
-
-    .back-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 30px;
-      padding: 9px 0;
-      color: #aaa;
-      background: transparent;
-      border: none;
-      font-size: 13px;
-    }
-
-    .back-button:hover {
-      color: white;
-    }
-
-    .form-card {
-      padding: 30px;
+    .card {
+      padding: 28px;
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: 15px;
     }
 
-    .form-card h1 {
-      font-size: 31px;
-      letter-spacing: -1px;
+    .narrow { width: min(100%, 440px); margin: 0 auto; }
+
+    .back {
+      padding: 0;
+      margin: 0 0 25px;
+      color: #aaa;
+      background: transparent;
+      border: 0;
+      font-size: 13px;
     }
 
-    .form-card > p {
-      margin-top: 12px;
-      margin-bottom: 27px;
+    .back:hover { color: white; }
+
+    .card h1 { font-size: 31px; letter-spacing: -1px; }
+
+    .card > p {
+      margin: 12px 0 25px;
       color: var(--muted);
       font-size: 13px;
       line-height: 1.7;
     }
 
-    .field {
-      margin-bottom: 19px;
-    }
+    .field { margin-bottom: 17px; }
 
-    .field label {
+    label {
       display: block;
-      margin-bottom: 9px;
-      color: #dedede;
+      margin-bottom: 8px;
       font-size: 12px;
       font-weight: bold;
     }
 
-    .field input {
+    input {
       width: 100%;
       height: 47px;
-      padding: 0 14px;
-      outline: none;
+      padding: 0 13px;
       color: white;
       background: #090909;
-      border: 1px solid #333;
-      border-radius: 9px;
-      transition: border-color 0.2s;
+      border: 1px solid #353535;
+      border-radius: 8px;
+      outline: none;
     }
 
-    .field input:focus {
-      border-color: #eee;
-    }
+    input:focus { border-color: white; }
+    input::placeholder { color: #666; }
 
-    .field input::placeholder {
-      color: #606060;
-    }
-
-    .primary-button {
+    .primary, .secondary {
       width: 100%;
-      min-height: 48px;
-      padding: 13px 16px;
-      color: #080808;
-      background: #f5f5f5;
-      border: 1px solid #f5f5f5;
-      border-radius: 9px;
-      font-size: 13px;
+      min-height: 46px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 800;
-      transition: 0.2s;
     }
 
-    .primary-button:hover {
-      background: #d7d7d7;
+    .primary {
+      color: #080808;
+      background: white;
+      border: 1px solid white;
     }
 
-    .secondary-button {
-      width: 100%;
-      min-height: 45px;
+    .primary:hover { background: #ddd; }
+    .primary:disabled { opacity: .5; cursor: wait; }
+
+    .secondary {
       margin-top: 10px;
-      color: #eee;
+      color: white;
       background: transparent;
       border: 1px solid #333;
-      border-radius: 9px;
     }
 
-    .secondary-button:hover {
-      background: #1a1a1a;
-    }
+    .secondary:hover { background: #202020; }
 
     .notice {
       display: none;
       padding: 12px;
-      margin-top: 16px;
-      color: #eee;
-      background: #1a1a1a;
+      margin-top: 15px;
       border: 1px solid #393939;
-      border-radius: 9px;
+      border-radius: 8px;
+      color: #eee;
       font-size: 12px;
       line-height: 1.6;
+      overflow-wrap: anywhere;
     }
 
-    .notice.show {
-      display: block;
-    }
-
-    .lobby-wrap {
-      max-width: 650px;
-      margin: 0 auto;
-    }
-
-    .lobby-header {
-      padding: 30px;
-      text-align: center;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-
-    .lobby-header h1 {
-      font-size: 34px;
-      letter-spacing: -1px;
-    }
-
-    .lobby-header p {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 13px;
-    }
+    .notice.show { display: block; }
 
     .room-code {
-      display: inline-block;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 17px;
       margin-top: 22px;
-      padding: 13px 22px;
-      color: #888;
       background: #080808;
-      border: 1px dashed #444;
+      border: 1px dashed #555;
       border-radius: 10px;
-      font-size: 19px;
-      font-weight: bold;
-      letter-spacing: 4px;
     }
 
-    .lobby-section {
-      padding: 23px;
-      margin-top: 15px;
+    .room-code strong {
+      font-size: 23px;
+      letter-spacing: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    .copy-button {
+      padding: 9px 12px;
+      color: black;
+      background: white;
+      border: 0;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .section {
+      padding: 22px;
+      margin-top: 14px;
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: 12px;
     }
 
-    .lobby-section h2 {
-      margin-bottom: 12px;
-      font-size: 15px;
-    }
+    .section h2 { margin: 0 0 15px; font-size: 15px; }
+    .section p { color: var(--muted); font-size: 13px; line-height: 1.7; }
 
-    .lobby-section p {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.8;
-    }
-
-    .status-row {
+    .player-list { list-style: none; padding: 0; margin: 0; }
+    .player-list li {
       display: flex;
-      justify-content: space-between;
-      gap: 15px;
       align-items: center;
-      padding: 14px 0;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
       border-bottom: 1px solid #292929;
       font-size: 13px;
     }
+    .player-list li:last-child { border-bottom: 0; }
 
-    .status-row:last-child {
-      border-bottom: none;
-    }
+    .host-label { color: #aaa; font-size: 10px; letter-spacing: .5px; }
+    .muted { color: var(--muted); }
 
-    .status-value {
-      color: #888;
-    }
-
-    .game-wrap {
-      max-width: 650px;
-      margin: 0 auto;
-    }
-
-    .game-heading {
-      margin-bottom: 25px;
-      text-align: center;
-    }
-
-    .game-heading h1 {
-      font-size: 36px;
-      letter-spacing: -1px;
-    }
-
-    .game-heading p {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .game-card {
-      padding: 25px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
-
-    .game-card h2 {
-      margin-bottom: 12px;
-      font-size: 17px;
-    }
-
-    .game-card p {
-      color: #999;
-      font-size: 13px;
-      line-height: 1.8;
+    .game-question {
+      padding: 22px;
+      margin: 15px 0;
+      background: #080808;
+      border: 1px solid #333;
+      border-radius: 10px;
+      font-size: 18px;
+      line-height: 1.6;
     }
 
     footer {
-      padding: 22px 16px;
-      color: #555;
+      padding: 22px;
       border-top: 1px solid var(--border);
+      color: #555;
       text-align: center;
-      font-size: 11px;
-      letter-spacing: 0.5px;
+      font-size: 10px;
+      letter-spacing: 1px;
     }
 
-    @media (max-width: 560px) {
-      .topbar {
-        height: 65px;
-        padding: 0 18px;
-      }
-
-      .brand {
-        font-size: 12px;
-        letter-spacing: 1px;
-      }
-
-      .online-label {
-        font-size: 10px;
-      }
-
-      main {
-        padding-top: 25px;
-      }
-
-      .hero {
-        margin: 35px auto 35px;
-      }
-
-      h1 {
-        letter-spacing: -1.8px;
-      }
-
-      .actions {
-        grid-template-columns: 1fr;
-      }
-
-      .action-card {
-        min-height: 155px;
-      }
-
-      .action-icon {
-        margin-bottom: 18px;
-      }
-
-      .form-card {
-        padding: 22px;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-      }
+    @media (max-width: 520px) {
+      header { height: 64px; padding: 0 16px; }
+      .brand { font-size: 11px; letter-spacing: .8px; }
+      main { padding-top: 28px; }
+      .actions { grid-template-columns: 1fr; }
+      .action { min-height: 145px; }
+      .action-icon { margin-bottom: 16px; }
+      .card { padding: 21px; }
+      .room-code { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
 
 <body>
-  <header class="topbar">
+  <header>
     <div class="brand">
       <div class="brand-icon">J</div>
       <span>JEUX ENTRE POTES</span>
     </div>
-
-    <div class="online-label">
-      <span class="online-dot"></span>
-      SALONS PRIVÉS
-    </div>
+    <div class="status">● SALONS PRIVÉS</div>
   </header>
 
   <main>
-    <!-- ACCUEIL -->
     <section id="homeScreen" class="screen active">
       <div class="hero">
-        <div class="eyebrow">ENTRE AMIS, C'EST MIEUX</div>
-
+        <div class="tag">ENTRE AMIS, C'EST MIEUX</div>
         <h1>JEUX ENTRE<br><span>POTES.</span></h1>
-
-        <p>
-          Retrouve tes amis, crée un salon privé et lancez votre partie.
-          Le jeu commence ici.
+        <p class="subtitle">
+          Crée un salon privé, invite tes amis et lancez une partie ensemble.
         </p>
       </div>
 
       <div class="actions">
-        <button class="action-card" type="button"
-          onclick="showScreen('createScreen')">
+        <button class="action" onclick="showScreen('createScreen')">
           <div class="action-icon">+</div>
           <h2>Créer un salon</h2>
-          <p>Prépare une partie privée et invite tes amis à te rejoindre.</p>
+          <p>Choisis ton pseudo et le mot de passe de ta partie.</p>
         </button>
 
-        <button class="action-card" type="button"
-          onclick="showScreen('joinScreen')">
+        <button class="action" onclick="showScreen('joinScreen')">
           <div class="action-icon">↗</div>
           <h2>Rejoindre un salon</h2>
-          <p>Tu as un code de salon ? Rejoins tes potes pour jouer.</p>
+          <p>Entre le code et le mot de passe partagés par ton ami.</p>
         </button>
       </div>
-
-      <p class="bottom-note">
-        UN PSEUDO · UN SALON · VOS POTES
-      </p>
     </section>
 
-    <!-- CRÉER UN SALON -->
     <section id="createScreen" class="screen">
-      <div class="form-wrap">
-        <button class="back-button" type="button" onclick="goHome()">
-          ← Retour à l'accueil
-        </button>
-
-        <div class="form-card">
+      <div class="narrow">
+        <button class="back" onclick="showScreen('homeScreen')">← Retour</button>
+        <div class="card">
           <h1>Créer un salon</h1>
-          <p>
-            Choisis ton pseudo et un mot de passe pour protéger ton salon.
-          </p>
-
+          <p>Choisis ton pseudo et un mot de passe pour ta partie.</p>
           <form id="createForm">
             <div class="field">
               <label for="createPseudo">TON PSEUDO</label>
-              <input id="createPseudo" name="pseudo"
-                type="text" placeholder="Ex. Alex" maxlength="20"
-                autocomplete="nickname" required>
+              <input id="createPseudo" maxlength="20" required
+                placeholder="Ex. Alex" autocomplete="nickname">
             </div>
-
             <div class="field">
               <label for="createPassword">MOT DE PASSE DU SALON</label>
-              <input id="createPassword" name="password"
-                type="password" placeholder="Choisis un mot de passe"
-                minlength="4" maxlength="64" required>
+              <input id="createPassword" type="password" minlength="4"
+                maxlength="64" required placeholder="4 caractères minimum">
             </div>
-
-            <button class="primary-button" type="submit">
-              CRÉER LE SALON →
-            </button>
+            <button class="primary" type="submit">CRÉER LE SALON →</button>
           </form>
-
           <div id="createNotice" class="notice" role="status"></div>
-
-          <button class="secondary-button" type="button"
-            onclick="showScreen('joinScreen')">
-            J'ai déjà un code de salon
-          </button>
         </div>
       </div>
     </section>
 
-    <!-- REJOINDRE UN SALON -->
     <section id="joinScreen" class="screen">
-      <div class="form-wrap">
-        <button class="back-button" type="button" onclick="goHome()">
-          ← Retour à l'accueil
-        </button>
-
-        <div class="form-card">
-          <h1>Rejoindre un salon</h1>
-          <p>
-            Entre les informations du salon partagé par ton ami.
-          </p>
-
+      <div class="narrow">
+        <button class="back" onclick="showScreen('homeScreen')">← Retour</button>
+        <div class="card">
+          <h1>Rejoindre</h1>
+          <p>Entre les informations que ton ami t'a envoyées.</p>
           <form id="joinForm">
             <div class="field">
-              <label for="roomCode">CODE DU SALON</label>
-              <input id="roomCode" name="roomCode"
-                type="text" placeholder="Code reçu de ton ami"
-                maxlength="12" autocomplete="off" required>
+              <label for="joinCode">CODE DU SALON</label>
+              <input id="joinCode" maxlength="6" required
+                placeholder="Ex. A7K9QP" autocomplete="off">
             </div>
-
             <div class="field">
               <label for="joinPseudo">TON PSEUDO</label>
-              <input id="joinPseudo" name="pseudo"
-                type="text" placeholder="Ex. Alex" maxlength="20"
-                autocomplete="nickname" required>
+              <input id="joinPseudo" maxlength="20" required
+                placeholder="Ex. Alex" autocomplete="nickname">
             </div>
-
             <div class="field">
               <label for="joinPassword">MOT DE PASSE DU SALON</label>
-              <input id="joinPassword" name="password"
-                type="password" placeholder="Mot de passe du salon"
-                maxlength="64" required>
+              <input id="joinPassword" type="password" maxlength="64"
+                required placeholder="Mot de passe">
             </div>
-
-            <button class="primary-button" type="submit">
-              REJOINDRE →
-            </button>
+            <button class="primary" type="submit">REJOINDRE →</button>
           </form>
-
           <div id="joinNotice" class="notice" role="status"></div>
-
-          <button class="secondary-button" type="button"
-            onclick="showScreen('createScreen')">
-            Créer mon propre salon
-          </button>
         </div>
       </div>
     </section>
 
-    <!-- SALON D'ATTENTE -->
     <section id="lobbyScreen" class="screen">
-      <div class="lobby-wrap">
-        <button class="back-button" type="button" onclick="goHome()">
-          ← Quitter l'écran
-        </button>
-
-        <div class="lobby-header">
-          <div class="eyebrow">SALON PRIVÉ</div>
-          <h1>Votre partie</h1>
-          <p>Partage le code avec tes amis pour les inviter.</p>
-
-          <div id="displayRoomCode" class="room-code">
-            EN ATTENTE
-          </div>
+      <button class="back" onclick="leaveRoom()">← Quitter le salon</button>
+      <div class="card">
+        <div class="tag">SALON PRIVÉ</div>
+        <h1>Votre partie</h1>
+        <p>Envoie le code à tes amis pour qu'ils puissent te rejoindre.</p>
+        <div class="room-code">
+          <strong id="displayCode">------</strong>
+          <button class="copy-button" onclick="copyRoomCode()">COPIER</button>
         </div>
+        <div id="lobbyNotice" class="notice" role="status"></div>
+      </div>
 
-        <div class="lobby-section">
-          <h2>Informations du salon</h2>
+      <div class="section">
+        <h2>Joueurs connectés</h2>
+        <ul id="playerList" class="player-list">
+          <li>Connexion…</li>
+        </ul>
+      </div>
 
-          <div class="status-row">
-            <span>Ton pseudo</span>
-            <span id="displayPseudo" class="status-value">En attente</span>
-          </div>
-
-          <div class="status-row">
-            <span>Connexion en ligne</span>
-            <span id="connectionStatus" class="status-value">
-              Non configurée
-            </span>
-          </div>
-
-          <div class="status-row">
-            <span>Joueurs connectés</span>
-            <span id="playerCount" class="status-value">Non disponible</span>
-          </div>
-        </div>
-
-        <div class="lobby-section">
-          <h2>Prêt à jouer ?</h2>
-          <p id="lobbyMessage">
-            La création de vrais salons en ligne nécessite la connexion
-            au serveur du jeu.
-          </p>
-          <button class="primary-button" type="button"
-            style="margin-top:18px" onclick="showScreen('gameScreen')">
-            VOIR L'ÉCRAN DE JEU
-          </button>
-        </div>
-
-        <div id="lobbyNotice" class="notice show" role="status">
-          Interface prête. Les salons multijoueurs ne sont pas encore
-          connectés à Firebase.
-        </div>
+      <div class="section">
+        <h2>Prêts à jouer ?</h2>
+        <p id="lobbyDescription">En attente des joueurs.</p>
+        <button id="startButton" class="primary" style="margin-top:16px"
+          onclick="startGame()">LANCER LA PARTIE →</button>
       </div>
     </section>
 
-    <!-- ÉCRAN DE JEU -->
     <section id="gameScreen" class="screen">
-      <div class="game-wrap">
-        <button class="back-button" type="button"
-          onclick="showScreen('lobbyScreen')">
-          ← Retour au salon
-        </button>
+      <button class="back" onclick="showScreen('lobbyScreen')">← Retour au salon</button>
+      <div class="card">
+        <div class="tag">LA PARTIE A COMMENCÉ</div>
+        <h1 id="gameTitle">À vous de jouer.</h1>
+        <p id="gameDescription">Suivez les instructions de la manche.</p>
 
-        <div class="game-heading">
-          <div class="eyebrow">C'EST PARTI</div>
-          <h1>Place au jeu.</h1>
-          <p>
-            Retrouvez vos amis et préparez votre prochaine partie.
-          </p>
+        <div id="answerArea" style="display:none">
+          <div class="game-question" id="secretQuestion"></div>
+          <form id="answerForm">
+            <div class="field">
+              <label for="answerInput">QUI CHOISIS-TU ?</label>
+              <input id="answerInput" maxlength="40" required
+                placeholder="Pseudo d'un joueur">
+            </div>
+            <button class="primary" type="submit">VALIDER MA RÉPONSE</button>
+          </form>
         </div>
 
-        <div class="game-card">
-          <h2>La partie n'est pas encore lancée</h2>
-          <p>
-            Cet écran est prêt pour accueillir les règles, les manches,
-            les réponses et les scores du jeu.
-          </p>
-          <div id="gameNotice" class="notice show">
-            Pour jouer ensemble en temps réel, il faut encore connecter
-            la logique du jeu et les salons Firebase dans app.js.
-          </div>
+        <div id="guessArea" style="display:none">
+          <div class="game-question" id="shownAnswer"></div>
+          <form id="guessForm">
+            <div class="field">
+              <label for="guessInput">QUELLE ÉTAIT LA QUESTION ?</label>
+              <input id="guessInput" maxlength="180" required
+                placeholder="Écris ta supposition">
+            </div>
+            <button class="primary" type="submit">ENVOYER MA SUPPOSITION</button>
+          </form>
         </div>
+
+        <div id="gameNotice" class="notice" role="status"></div>
       </div>
     </section>
   </main>
 
-  <footer>
-    JEUX ENTRE POTES · FAIT POUR JOUER ENSEMBLE
-  </footer>
-
-  <script>
-    const screens = document.querySelectorAll(".screen");
-
-    function showScreen(screenId) {
-      screens.forEach(screen => {
-        screen.classList.toggle("active", screen.id === screenId);
-      });
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-
-    function goHome() {
-      showScreen("homeScreen");
-    }
-
-    function showNotice(id, message) {
-      const notice = document.getElementById(id);
-      notice.textContent = message;
-      notice.classList.add("show");
-    }
-
-    document.getElementById("createForm").addEventListener("submit", event => {
-      event.preventDefault();
-
-      const pseudo = document.getElementById("createPseudo").value.trim();
-      const password = document.getElementById("createPassword").value;
-
-      if (!pseudo || password.length < 4) {
-        showNotice("createNotice",
-          "Entre un pseudo et un mot de passe d'au moins 4 caractères.");
-        return;
-      }
-
-      showNotice("createNotice",
-        "L'interface est prête, mais la création réelle du salon nécessite Firebase. Aucun salon en ligne n'a été créé.");
-    });
-
-    document.getElementById("joinForm").addEventListener("submit", event => {
-      event.preventDefault();
-
-      const code = document.getElementById("roomCode").value.trim();
-      const pseudo = document.getElementById("joinPseudo").value.trim();
-      const password = document.getElementById("joinPassword").value;
-
-      if (!code || !pseudo || !password) {
-        showNotice("joinNotice",
-          "Remplis tous les champs pour continuer.");
-        return;
-      }
-
-      showNotice("joinNotice",
-        "La vérification du code et du mot de passe nécessite Firebase. Aucune connexion à un salon n'a été effectuée.");
-    });
-  </script>
-
-  <script src="app.js"></script>
+  <footer>JEUX ENTRE POTES · NOIR & BLANC</footer>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
-
