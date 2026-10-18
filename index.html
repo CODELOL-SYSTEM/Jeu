@@ -5,466 +5,173 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080808">
-  <title>Jeux entre potes</title>
+  <title>JEUX ENTRE POTES</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #080808;
-      --panel: #121212;
-      --border: #2b2b2b;
-      --text: #f5f5f5;
-      --muted: #999;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    button, input { font: inherit; }
-    button { cursor: pointer; }
-
-    header {
-      height: 72px;
-      padding: 0 6%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      font-size: 14px;
-      font-weight: 900;
-      letter-spacing: 1.4px;
-    }
-
-    .brand-icon {
-      width: 35px;
-      height: 35px;
-      display: grid;
-      place-items: center;
-      background: white;
-      color: black;
-      border-radius: 9px;
-      font-size: 20px;
-    }
-
-    .status { color: var(--muted); font-size: 12px; }
-
-    main {
-      width: min(100% - 32px, 680px);
-      margin: 0 auto;
-      padding: 55px 0 75px;
-    }
-
-    .screen { display: none; }
-    .screen.active { display: block; }
-
-    .hero { text-align: center; margin: 25px 0 45px; }
-
-    .tag {
-      display: inline-block;
-      padding: 8px 12px;
-      margin-bottom: 20px;
-      border: 1px solid #383838;
-      border-radius: 30px;
-      color: #ccc;
-      font-size: 10px;
-      font-weight: bold;
-      letter-spacing: 1.5px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(38px, 8vw, 66px);
-      line-height: 1.05;
-      letter-spacing: -2.5px;
-    }
-
-    h1 span { color: #777; }
-
-    .subtitle {
-      max-width: 440px;
-      margin: 18px auto 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.8;
-    }
-
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .action {
-      padding: 24px;
-      min-height: 175px;
-      text-align: left;
-      color: white;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      transition: .2s;
-    }
-
-    .action:hover { background: #1b1b1b; border-color: #777; }
-
-    .action-icon {
-      width: 42px;
-      height: 42px;
-      display: grid;
-      place-items: center;
-      margin-bottom: 22px;
-      background: white;
-      color: black;
-      border-radius: 10px;
-      font-size: 23px;
-    }
-
-    .action h2 { margin: 0 0 8px; font-size: 18px; }
-    .action p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
-
-    .card {
-      padding: 28px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 15px;
-    }
-
-    .narrow { width: min(100%, 440px); margin: 0 auto; }
-
-    .back {
-      padding: 0;
-      margin: 0 0 25px;
-      color: #aaa;
-      background: transparent;
-      border: 0;
-      font-size: 13px;
-    }
-
-    .back:hover { color: white; }
-
-    .card h1 { font-size: 31px; letter-spacing: -1px; }
-
-    .card > p {
-      margin: 12px 0 25px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .field { margin-bottom: 17px; }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: 12px;
-      font-weight: bold;
-    }
-
-    input {
-      width: 100%;
-      height: 47px;
-      padding: 0 13px;
-      color: white;
-      background: #090909;
-      border: 1px solid #353535;
-      border-radius: 8px;
-      outline: none;
-    }
-
-    input:focus { border-color: white; }
-    input::placeholder { color: #666; }
-
-    .primary, .secondary {
-      width: 100%;
-      min-height: 46px;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .primary {
-      color: #080808;
-      background: white;
-      border: 1px solid white;
-    }
-
-    .primary:hover { background: #ddd; }
-    .primary:disabled { opacity: .5; cursor: wait; }
-
-    .secondary {
-      margin-top: 10px;
-      color: white;
-      background: transparent;
-      border: 1px solid #333;
-    }
-
-    .secondary:hover { background: #202020; }
-
-    .notice {
-      display: none;
-      padding: 12px;
-      margin-top: 15px;
-      border: 1px solid #393939;
-      border-radius: 8px;
-      color: #eee;
-      font-size: 12px;
-      line-height: 1.6;
-      overflow-wrap: anywhere;
-    }
-
-    .notice.show { display: block; }
-
-    .room-code {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 17px;
-      margin-top: 22px;
-      background: #080808;
-      border: 1px dashed #555;
-      border-radius: 10px;
-    }
-
-    .room-code strong {
-      font-size: 23px;
-      letter-spacing: 4px;
-      overflow-wrap: anywhere;
-    }
-
-    .copy-button {
-      padding: 9px 12px;
-      color: black;
-      background: white;
-      border: 0;
-      border-radius: 7px;
-      font-size: 11px;
-      font-weight: bold;
-    }
-
-    .section {
-      padding: 22px;
-      margin-top: 14px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-
-    .section h2 { margin: 0 0 15px; font-size: 15px; }
-    .section p { color: var(--muted); font-size: 13px; line-height: 1.7; }
-
-    .player-list { list-style: none; padding: 0; margin: 0; }
-    .player-list li {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #292929;
-      font-size: 13px;
-    }
-    .player-list li:last-child { border-bottom: 0; }
-
-    .host-label { color: #aaa; font-size: 10px; letter-spacing: .5px; }
-    .muted { color: var(--muted); }
-
-    .game-question {
-      padding: 22px;
-      margin: 15px 0;
-      background: #080808;
-      border: 1px solid #333;
-      border-radius: 10px;
-      font-size: 18px;
-      line-height: 1.6;
-    }
-
-    footer {
-      padding: 22px;
-      border-top: 1px solid var(--border);
-      color: #555;
-      text-align: center;
-      font-size: 10px;
-      letter-spacing: 1px;
-    }
-
-    @media (max-width: 520px) {
-      header { height: 64px; padding: 0 16px; }
-      .brand { font-size: 11px; letter-spacing: .8px; }
-      main { padding-top: 28px; }
-      .actions { grid-template-columns: 1fr; }
-      .action { min-height: 145px; }
-      .action-icon { margin-bottom: 16px; }
-      .card { padding: 21px; }
-      .room-code { align-items: flex-start; flex-direction: column; }
-    }
+    :root{color-scheme:dark;--bg:#080808;--panel:#121212;--line:#2c2c2c;--text:#f5f5f5;--muted:#969696;--accent:#baff69}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    header{height:72px;padding:0 6%;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+    .logo{font-weight:950;font-size:16px;letter-spacing:-.5px}
+    .logo small{display:block;font-size:9px;letter-spacing:3px;color:var(--muted);margin-top:4px}
+    .online{font-size:10px;color:var(--muted);letter-spacing:1px}
+    .online i{display:inline-block;width:7px;height:7px;background:var(--accent);border-radius:50%;margin-right:7px}
+    main{width:min(950px,91%);margin:0 auto;padding:36px 0 65px}
+    .screen{display:none}.screen.active{display:block;animation:fade .25s ease}
+    @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .eyebrow,.number{font-size:10px;font-weight:bold;letter-spacing:2px;color:var(--accent)}
+    h1{font-size:clamp(42px,8vw,76px);line-height:.95;letter-spacing:-4px;margin:22px 0}
+    h1 span{color:var(--accent)}
+    h2{font-size:20px;margin:15px 0 22px}
+    p{line-height:1.6;color:var(--muted);font-size:13px}
+    .hero{max-width:580px;margin-bottom:35px}
+    .hero p{max-width:440px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .panel{padding:23px;background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:16px;min-width:0}
+    label{display:block;margin:16px 0 8px;font-size:12px;color:#ccc}
+    input,select{width:100%;min-height:47px;padding:12px;background:#090909;color:white;border:1px solid #393939;border-radius:8px;outline:none}
+    input:focus,select:focus{border-color:var(--accent)}
+    button{border-radius:8px;font-weight:bold}
+    .primary{width:100%;padding:14px;background:var(--accent);border:1px solid var(--accent);color:#080808;margin-top:18px;font-size:12px}
+    .primary:hover{background:#d2ff9e}
+    .primary:disabled{opacity:.45;cursor:not-allowed}
+    .secondary{padding:12px 15px;background:transparent;color:white;border:1px solid #444;font-size:11px}
+    .notice{display:none;color:#ff9999;font-size:13px;overflow-wrap:anywhere}
+    .notice.show{display:block}
+    .section-title{margin-bottom:25px}
+    .section-title h1{font-size:clamp(40px,7vw,60px)}
+    .code-line,.panel-title,.game-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .code-line{margin-top:12px}
+    .code-line strong{font-size:clamp(25px,7vw,43px);letter-spacing:6px;overflow-wrap:anywhere}
+    .panel-title h2{margin:0 0 17px}
+    .panel-title span,.round{font-size:11px;color:var(--muted)}
+    ul{list-style:none;padding:0;margin:0}
+    li{padding:13px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;overflow-wrap:anywhere}
+    li:last-child{border-bottom:0}
+    .host-label{font-size:9px;color:var(--accent);font-weight:bold;letter-spacing:1px;white-space:nowrap}
+    .hidden{display:none!important}
+    .timer{display:flex;align-items:center;gap:17px;padding:20px;border:1px solid var(--line);border-radius:12px;margin-bottom:16px}
+    #timerNumber{display:grid;place-items:center;width:62px;height:62px;flex-shrink:0;background:var(--accent);color:#000;font-weight:950;font-size:28px;border-radius:10px}
+    .timer strong{font-size:12px;letter-spacing:1px}
+    .timer p{margin-bottom:0}
+    .secret,.prompt{padding:25px 16px;text-align:center;border:1px solid #393939;border-radius:10px;background:#090909;margin:20px 0}
+    .secret small,.prompt small{display:block;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:12px}
+    .secret strong{display:block;font-size:clamp(28px,7vw,40px);color:var(--accent);overflow-wrap:anywhere}
+    .prompt strong{font-size:20px;line-height:1.5}
+    .entry{display:block}
+    .entry.used{color:#666}
+    .entry small{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+    .entry.used small{color:#555}
+    footer{text-align:center;border-top:1px solid var(--line);padding:24px;color:#777;font-size:9px;letter-spacing:2px}
+    footer span{color:var(--accent)}
+    @media(max-width:620px){.grid{grid-template-columns:1fr;gap:0}main{padding-top:25px}.panel{padding:19px}h1{letter-spacing:-2px}header{height:65px}}
   </style>
-</head>
-
-<body>
-  <header>
-    <div class="brand">
-      <div class="brand-icon">J</div>
-      <span>JEUX ENTRE POTES</span>
-    </div>
-    <div class="status">● SALONS PRIVÉS</div>
-  </header>
-
-  <main>
-    <section id="homeScreen" class="screen active">
-      <div class="hero">
-        <div class="tag">ENTRE AMIS, C'EST MIEUX</div>
-        <h1>JEUX ENTRE<br><span>POTES.</span></h1>
-        <p class="subtitle">
-          Crée un salon privé, invite tes amis et lancez une partie ensemble.
-        </p>
-      </div>
-
-      <div class="actions">
-        <button class="action" onclick="showScreen('createScreen')">
-          <div class="action-icon">+</div>
-          <h2>Créer un salon</h2>
-          <p>Choisis ton pseudo et le mot de passe de ta partie.</p>
-        </button>
-
-        <button class="action" onclick="showScreen('joinScreen')">
-          <div class="action-icon">↗</div>
-          <h2>Rejoindre un salon</h2>
-          <p>Entre le code et le mot de passe partagés par ton ami.</p>
-        </button>
-      </div>
-    </section>
-
-    <section id="createScreen" class="screen">
-      <div class="narrow">
-        <button class="back" onclick="showScreen('homeScreen')">← Retour</button>
-        <div class="card">
-          <h1>Créer un salon</h1>
-          <p>Choisis ton pseudo et un mot de passe pour ta partie.</p>
-          <form id="createForm">
-            <div class="field">
-              <label for="createPseudo">TON PSEUDO</label>
-              <input id="createPseudo" maxlength="20" required
-                placeholder="Ex. Alex" autocomplete="nickname">
-            </div>
-            <div class="field">
-              <label for="createPassword">MOT DE PASSE DU SALON</label>
-              <input id="createPassword" type="password" minlength="4"
-                maxlength="64" required placeholder="4 caractères minimum">
-            </div>
-            <button class="primary" type="submit">CRÉER LE SALON →</button>
-          </form>
-          <div id="createNotice" class="notice" role="status"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="joinScreen" class="screen">
-      <div class="narrow">
-        <button class="back" onclick="showScreen('homeScreen')">← Retour</button>
-        <div class="card">
-          <h1>Rejoindre</h1>
-          <p>Entre les informations que ton ami t'a envoyées.</p>
-          <form id="joinForm">
-            <div class="field">
-              <label for="joinCode">CODE DU SALON</label>
-              <input id="joinCode" maxlength="6" required
-                placeholder="Ex. A7K9QP" autocomplete="off">
-            </div>
-            <div class="field">
-              <label for="joinPseudo">TON PSEUDO</label>
-              <input id="joinPseudo" maxlength="20" required
-                placeholder="Ex. Alex" autocomplete="nickname">
-            </div>
-            <div class="field">
-              <label for="joinPassword">MOT DE PASSE DU SALON</label>
-              <input id="joinPassword" type="password" maxlength="64"
-                required placeholder="Mot de passe">
-            </div>
-            <button class="primary" type="submit">REJOINDRE →</button>
-          </form>
-          <div id="joinNotice" class="notice" role="status"></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="lobbyScreen" class="screen">
-      <button class="back" onclick="leaveRoom()">← Quitter le salon</button>
-      <div class="card">
-        <div class="tag">SALON PRIVÉ</div>
-        <h1>Votre partie</h1>
-        <p>Envoie le code à tes amis pour qu'ils puissent te rejoindre.</p>
-        <div class="room-code">
-          <strong id="displayCode">------</strong>
-          <button class="copy-button" onclick="copyRoomCode()">COPIER</button>
-        </div>
-        <div id="lobbyNotice" class="notice" role="status"></div>
-      </div>
-
-      <div class="section">
-        <h2>Joueurs connectés</h2>
-        <ul id="playerList" class="player-list">
-          <li>Connexion…</li>
-        </ul>
-      </div>
-
-      <div class="section">
-        <h2>Prêts à jouer ?</h2>
-        <p id="lobbyDescription">En attente des joueurs.</p>
-        <button id="startButton" class="primary" style="margin-top:16px"
-          onclick="startGame()">LANCER LA PARTIE →</button>
-      </div>
-    </section>
-
-    <section id="gameScreen" class="screen">
-      <button class="back" onclick="showScreen('lobbyScreen')">← Retour au salon</button>
-      <div class="card">
-        <div class="tag">LA PARTIE A COMMENCÉ</div>
-        <h1 id="gameTitle">À vous de jouer.</h1>
-        <p id="gameDescription">Suivez les instructions de la manche.</p>
-
-        <div id="answerArea" style="display:none">
-          <div class="game-question" id="secretQuestion"></div>
-          <form id="answerForm">
-            <div class="field">
-              <label for="answerInput">QUI CHOISIS-TU ?</label>
-              <input id="answerInput" maxlength="40" required
-                placeholder="Pseudo d'un joueur">
-            </div>
-            <button class="primary" type="submit">VALIDER MA RÉPONSE</button>
-          </form>
-        </div>
-
-        <div id="guessArea" style="display:none">
-          <div class="game-question" id="shownAnswer"></div>
-          <form id="guessForm">
-            <div class="field">
-              <label for="guessInput">QUELLE ÉTAIT LA QUESTION ?</label>
-              <input id="guessInput" maxlength="180" required
-                placeholder="Écris ta supposition">
-            </div>
-            <button class="primary" type="submit">ENVOYER MA SUPPOSITION</button>
-          </form>
-        </div>
-
-        <div id="gameNotice" class="notice" role="status"></div>
-      </div>
-    </section>
-  </main>
-
-  <footer>JEUX ENTRE POTES · NOIR & BLANC</footer>
   <script type="module" src="./app.js"></script>
+</head>
+<body>
+<header>
+  <div class="logo">JEUX ENTRE POTES<small>LA PARTIE COMMENCE ICI</small></div>
+  <div class="online"><i></i> MULTIJOUEUR</div>
+</header>
+
+<main>
+  <section id="homeScreen" class="screen active">
+    <div class="hero">
+      <div class="eyebrow">TON GROUPE. TES RÈGLES.</div>
+      <h1>QUE LE<br><span>MEILLEUR</span><br>GAGNE.</h1>
+      <p>Imposteurs, mots secrets, votes et défis. Crée un salon et invite tes amis.</p>
+    </div>
+    <div class="grid">
+      <form id="createForm" class="panel">
+        <div class="number">01 / HÔTE</div><h2>Créer un salon</h2>
+        <label for="createPseudo">Ton pseudo</label>
+        <input id="createPseudo" maxlength="20" placeholder="Alex" required>
+        <label for="createPassword">Mot de passe du salon</label>
+        <input id="createPassword" type="password" minlength="4" required placeholder="4 caractères minimum">
+        <button class="primary" type="submit">CRÉER LE SALON ↗</button>
+        <p id="createNotice" class="notice"></p>
+      </form>
+      <form id="joinForm" class="panel">
+        <div class="number">02 / JOUEUR</div><h2>Rejoindre un salon</h2>
+        <label for="joinCode">Code du salon</label>
+        <input id="joinCode" maxlength="6" placeholder="ABC234" required>
+        <label for="joinPseudo">Ton pseudo</label>
+        <input id="joinPseudo" maxlength="20" required placeholder="Ton pseudo">
+        <label for="joinPassword">Mot de passe</label>
+        <input id="joinPassword" type="password" required>
+        <button class="primary" type="submit">REJOINDRE ↗</button>
+        <p id="joinNotice" class="notice"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="lobbyScreen" class="screen">
+    <div class="section-title">
+      <div class="eyebrow">SALON PRIVÉ</div><h1>LE LOBBY<span>.</span></h1>
+      <p id="lobbyDescription">En attente des joueurs.</p>
+    </div>
+    <div class="panel">
+      <div class="number">INVITE TES POTES</div>
+      <div class="code-line"><strong id="displayCode">------</strong><button class="secondary" id="copyButton" type="button">COPIER</button></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><h2>Les joueurs</h2><span id="playerCount">0/12</span></div>
+      <ul id="playerList"></ul>
+    </div>
+    <div id="hostSettings" class="panel">
+      <div class="number">PARAMÈTRES DE PARTIE</div>
+      <label for="gameMode">Choisir le mode</label>
+      <select id="gameMode">
+        <option value="imposteur">🕵️ Imposteur</option>
+        <option value="vote">👀 Qui est le plus susceptible ?</option>
+        <option value="association">💭 Association de mots</option>
+        <option value="quiz">⚡ Quiz express</option>
+        <option value="vrai-faux">🎯 Vrai ou faux</option>
+        <option value="mystere">🔐 Mot mystère</option>
+      </select>
+      <label for="roundCount">Nombre de manches</label>
+      <select id="roundCount">
+        <option value="3">3 manches</option><option value="5" selected>5 manches</option>
+        <option value="10">10 manches</option><option value="15">15 manches</option>
+        <option value="20">20 manches</option>
+      </select>
+      <button class="primary" id="startButton" type="button">LANCER LA PARTIE ↗</button>
+    </div>
+    <p id="lobbyNotice" class="notice"></p>
+    <button class="secondary" id="leaveLobby" type="button">QUITTER LE SALON</button>
+  </section>
+
+  <section id="gameScreen" class="screen">
+    <div class="game-top"><div id="modeLabel" class="eyebrow">MODE IMPOSTEUR</div><div id="roundLabel" class="round">MANCHE 1/5</div></div>
+    <div class="timer">
+      <div id="timerNumber">10</div>
+      <div><strong id="phaseLabel">MÉMORISE TON MOT</strong><p id="timerDescription">Lis bien les instructions.</p></div>
+    </div>
+    <div class="panel">
+      <h1 id="gameTitle">C'est parti<span>.</span></h1>
+      <p id="gameDescription">La manche va commencer.</p>
+      <div id="secretCard" class="secret"><small>TON MOT SECRET</small><strong id="secretWord">••••••</strong></div>
+      <div id="promptCard" class="prompt hidden"><small>SUJET</small><strong id="promptText"></strong></div>
+      <form id="actionForm" class="hidden">
+        <label id="actionLabel" for="actionInput">Ta réponse</label>
+        <input id="actionInput" maxlength="100" autocomplete="off" placeholder="Écris ici..." required>
+        <button id="actionButton" class="primary" type="submit">ENVOYER ↗</button>
+      </form>
+      <p id="gameNotice" class="notice"></p>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><h2>Indices et réponses</h2><span id="entryCount">0</span></div>
+      <ul id="entryList"></ul>
+    </div>
+    <div class="panel">
+      <div class="panel-title"><h2>Classement</h2><span>POINTS</span></div>
+      <ul id="scoreList"></ul>
+    </div>
+    <div id="hostGameControls" class="hidden"><button class="primary" id="nextButton" type="button">CONTINUER ↗</button></div>
+    <button id="returnButton" class="secondary hidden" type="button">RETOUR AU LOBBY</button>
+  </section>
+</main>
+<footer>JEUX ENTRE POTES <span>•</span> FAIT POUR JOUER ENSEMBLE</footer>
 </body>
 </html>
