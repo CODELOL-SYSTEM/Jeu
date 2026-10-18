@@ -86,11 +86,14 @@ function clearNotice(id) {
 function setBusy(value) {
   busy = value;
 
-  document
-    .querySelectorAll("form button[type='submit']")
-    .forEach(button => {
-      button.disabled = value;
-    });
+  document.querySelectorAll("form button[type='submit']").forEach(button => {
+    button.disabled = value;
+  });
+
+  const startButton = $("startButton");
+  if (startButton) {
+    startButton.disabled = value || !amHost();
+  }
 }
 
 function normalizePseudo(value) {
@@ -123,7 +126,7 @@ async function roomDocumentId(code, password) {
     .join("");
 }
 
-/* OUTILS */
+/* GESTION DES JOUEURS */
 function getPlayers() {
   const players = roomData?.players;
 
@@ -141,15 +144,11 @@ function amHost() {
 }
 
 function amMember() {
-  return getPlayers().some(
-    player => player.uid === currentUser?.uid
-  );
+  return getPlayers().some(player => player.uid === currentUser?.uid);
 }
 
 function getMyPlayer() {
-  return getPlayers().find(
-    player => player.uid === currentUser?.uid
-  );
+  return getPlayers().find(player => player.uid === currentUser?.uid);
 }
 
 function safeText(value) {
@@ -165,7 +164,7 @@ function renderPlayers() {
 
   const players = getPlayers();
 
-  if (players.length === 0) {
+  if (!players.length) {
     const li = document.createElement("li");
     li.textContent = "Aucun joueur pour le moment.";
     list.appendChild(li);
@@ -272,14 +271,14 @@ async function initializeConnection() {
     const credential = await signInAnonymously(auth);
     currentUser = credential.user;
   } catch (error) {
-    console.error(error);
+    console.error("Erreur de connexion Firebase :", error);
 
     document.querySelectorAll(".primary").forEach(button => {
       button.disabled = true;
     });
 
     alert(
-      "Connexion impossible. Dans Firebase, active l'authentification anonyme dans Authentication > Sign-in method."
+      "Connexion Firebase impossible. Active l'authentification anonyme dans Firebase > Authentication > Sign-in method."
     );
   }
 }
@@ -290,7 +289,12 @@ await initializeConnection();
 $("createForm").addEventListener("submit", async event => {
   event.preventDefault();
 
-  if (busy || !currentUser) return;
+  if (busy) return;
+
+  if (!currentUser) {
+    notice("createNotice", "Connexion Firebase impossible. Recharge la page.");
+    return;
+  }
 
   const pseudo = normalizePseudo($("createPseudo").value);
   const password = $("createPassword").value;
@@ -355,10 +359,11 @@ $("createForm").addEventListener("submit", async event => {
       throw new Error("Impossible de créer le salon. Réessaie.");
     }
   } catch (error) {
-    console.error(error);
+    console.error("Erreur création salon :", error);
     notice("createNotice", firebaseMessage(error));
   } finally {
     setBusy(false);
+    if (roomData) renderRoom();
   }
 });
 
@@ -366,7 +371,12 @@ $("createForm").addEventListener("submit", async event => {
 $("joinForm").addEventListener("submit", async event => {
   event.preventDefault();
 
-  if (busy || !currentUser) return;
+  if (busy) return;
+
+  if (!currentUser) {
+    notice("joinNotice", "Connexion Firebase impossible. Recharge la page.");
+    return;
+  }
 
   const code = normalizeCode($("joinCode").value);
   const pseudo = normalizePseudo($("joinPseudo").value);
@@ -375,10 +385,7 @@ $("joinForm").addEventListener("submit", async event => {
   clearNotice("joinNotice");
 
   if (code.length !== 6 || !pseudo || !password) {
-    notice(
-      "joinNotice",
-      "Vérifie le code, le pseudo et le mot de passe."
-    );
+    notice("joinNotice", "Vérifie le code, le pseudo et le mot de passe.");
     return;
   }
 
@@ -388,12 +395,18 @@ $("joinForm").addEventListener("submit", async event => {
     const roomId = await roomDocumentId(code, password);
     const roomRef = ref(db, `rooms/${roomId}`);
 
-    const transaction = await runTransaction(roomRef, currentData => {
-      if (!currentData || currentData.code !== code) {
-        return;
-      }
+    /* Vérifier que le salon existe */
+    const snapshot = await get(roomRef);
 
-      const players = currentData.players || {};
+    if (!snapshot.exists() || snapshot.val()?.code !== code) {
+      throw new Error("Code ou mot de passe incorrect.");
+    }
+
+    /* Ajouter le joueur dans la branche players uniquement */
+    const playersRef = ref(db, `rooms/${roomId}/players`);
+
+    const result = await runTransaction(playersRef, currentPlayers => {
+      const players = currentPlayers || {};
       const existingPlayer = players[currentUser.uid];
 
       if (!existingPlayer && Object.keys(players).length >= 12) {
@@ -401,38 +414,43 @@ $("joinForm").addEventListener("submit", async event => {
       }
 
       return {
-        ...currentData,
-        players: {
-          ...players,
-          [currentUser.uid]: {
-            uid: currentUser.uid,
-            pseudo
-          }
+        ...players,
+        [currentUser.uid]: {
+          uid: currentUser.uid,
+          pseudo
         }
       };
     });
 
-    if (!transaction.committed) {
-      const snapshot = await get(roomRef);
+    if (!result.committed) {
+      const latest = await get(roomRef);
 
-      if (!snapshot.exists() || snapshot.val()?.code !== code) {
+      if (!latest.exists() || latest.val()?.code !== code) {
         throw new Error("Code ou mot de passe incorrect.");
       }
 
-      const players = snapshot.val()?.players || {};
+      const players = latest.val()?.players || {};
 
-      if (!players[currentUser.uid] &&
-          Object.keys(players).length >= 12) {
+      if (!players[currentUser.uid] && Object.keys(players).length >= 12) {
         throw new Error("Ce salon est complet (12 joueurs maximum).");
       }
 
-      throw new Error("Impossible de rejoindre le salon. Réessaie.");
+      throw new Error(
+        "Firebase a refusé l'ajout du joueur. Vérifie les règles de la base."
+      );
     }
 
-    const data = transaction.snapshot.val();
+    /* Vérification finale avant d'ouvrir le salon */
+    const updatedRoom = await get(roomRef);
 
-    if (!data || data.code !== code) {
-      throw new Error("Code ou mot de passe incorrect.");
+    if (!updatedRoom.exists()) {
+      throw new Error("Le salon n'existe plus.");
+    }
+
+    const data = updatedRoom.val();
+
+    if (!data.players?.[currentUser.uid]) {
+      throw new Error("Le joueur n'a pas été enregistré dans le salon.");
     }
 
     currentPseudo = pseudo;
@@ -441,10 +459,11 @@ $("joinForm").addEventListener("submit", async event => {
 
     listenToRoom();
   } catch (error) {
-    console.error(error);
+    console.error("Erreur rejoindre salon :", error);
     notice("joinNotice", firebaseMessage(error));
   } finally {
     setBusy(false);
+    if (roomData) renderRoom();
   }
 });
 
@@ -472,7 +491,7 @@ function listenToRoom() {
       renderRoom();
     },
     error => {
-      console.error(error);
+      console.error("Erreur synchronisation :", error);
       notice("lobbyNotice", firebaseMessage(error));
     }
   );
@@ -510,7 +529,7 @@ window.startGame = async function () {
       guesses: {}
     });
   } catch (error) {
-    console.error(error);
+    console.error("Erreur lancement partie :", error);
     notice("lobbyNotice", firebaseMessage(error));
   } finally {
     setBusy(false);
@@ -560,7 +579,7 @@ $("answerForm").addEventListener("submit", async event => {
 
     $("answerInput").value = "";
   } catch (error) {
-    console.error(error);
+    console.error("Erreur réponse :", error);
     notice("gameNotice", firebaseMessage(error));
   } finally {
     setBusy(false);
@@ -599,17 +618,9 @@ $("guessForm").addEventListener("submit", async event => {
       const players = data.players || {};
       const guesses = data.game.guesses || {};
 
-      if (!players[currentUser.uid]) {
-        return;
-      }
-
-      if (currentUser.uid === data.game.answererUid) {
-        return;
-      }
-
-      if (guesses[currentUser.uid]) {
-        return;
-      }
+      if (!players[currentUser.uid]) return;
+      if (currentUser.uid === data.game.answererUid) return;
+      if (guesses[currentUser.uid]) return;
 
       const updatedGuesses = {
         ...guesses,
@@ -640,14 +651,14 @@ $("guessForm").addEventListener("submit", async event => {
 
     if (!transaction.committed) {
       throw new Error(
-        "Tu as peut-être déjà envoyé ta supposition ou la manche est terminée."
+        "Supposition déjà envoyée ou manche terminée. Réessaie."
       );
     }
 
     $("guessInput").value = "";
     notice("gameNotice", "Ta supposition a été envoyée !");
   } catch (error) {
-    console.error(error);
+    console.error("Erreur supposition :", error);
     notice("gameNotice", firebaseMessage(error));
   } finally {
     setBusy(false);
@@ -676,6 +687,7 @@ window.leaveRoom = function () {
   currentPseudo = "";
   roomData = null;
 
+  clearNotice("lobbyNotice");
   showScreen("homeScreen");
 };
 
@@ -700,8 +712,12 @@ function firebaseMessage(error) {
     return "Accès refusé. Vérifie les règles de Realtime Database.";
   }
 
-  if (message.includes("Failed to fetch")) {
-    return "Serveur inaccessible. Vérifie ta connexion Internet.";
+  if (message.includes("Firebase a refusé l'ajout")) {
+    return message;
+  }
+
+  if (message.includes("network")) {
+    return "Problème de connexion Internet. Réessaie.";
   }
 
   return message || "Une erreur est survenue. Vérifie Firebase.";
