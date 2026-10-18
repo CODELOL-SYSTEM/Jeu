@@ -1,23 +1,10 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
-
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
 import {
-  getAuth,
-  signInAnonymously
-} from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
-
-import {
-  getDatabase,
-  ref,
-  get,
-  set,
-  update,
-  onValue,
-  runTransaction,
-  serverTimestamp
+  getDatabase, ref, get, set, update, onValue, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-database.js";
 
-/* CONFIGURATION FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyBSLc3oIdX9wB_LsOCTk_gcnNGEdg8DbgM",
   authDomain: "jeu-parti.firebaseapp.com",
@@ -32,696 +19,634 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
-
-let currentRoomId = null;
-let currentRoomCode = null;
-let currentUser = null;
-let currentPseudo = "";
-let unsubscribeRoom = null;
-let roomData = null;
-let busy = false;
-
 const $ = id => document.getElementById(id);
 
-const QUESTIONS = [
-  "Qui est le plus susceptible de devenir célèbre ?",
-  "Qui survivrait le plus longtemps sur une île déserte ?",
-  "Qui est le plus drôle du groupe ?",
-  "Qui arriverait le plus souvent en retard ?",
-  "Qui pourrait devenir millionnaire ?",
-  "Qui est le plus compétitif ?",
-  "Qui serait le meilleur détective ?",
-  "Qui pourrait partir à l'aventure sans prévenir ?",
-  "Qui est le plus susceptible de rire au mauvais moment ?",
-  "Qui serait le meilleur chef d'équipe ?",
-  "Qui pourrait oublier pourquoi il est entré dans une pièce ?",
-  "Qui est le plus doué pour convaincre les autres ?"
+let user = null, roomId = null, roomCode = null, pseudo = "";
+let room = null, stopListening = null, busy = false, timerInterval = null;
+let lastTimerPhase = "", scoring = false;
+
+const WORD_PAIRS = [
+  ["GAZ","PROUT"],["CHAT","TIGRE"],["PIZZA","BURGER"],["PLAGE","PISCINE"],
+  ["AVION","HÉLICOPTÈRE"],["FOOTBALL","RUGBY"],["TÉLÉPHONE","TABLETTE"],
+  ["CHOCOLAT","BONBON"],["ÉCOLE","COLLÈGE"],["LUNE","SOLEIL"],
+  ["PANDA","KOALA"],["YOUTUBE","TIKTOK"],["FANTÔME","ZOMBIE"],
+  ["POMME","POIRE"],["ROBOT","ALIEN"],["POMPIER","POLICIER"],
+  ["PIRATE","NINJA"],["MONTAGNE","VOLCAN"],["GUITARE","PIANO"],
+  ["CINÉMA","THÉÂTRE"],["NEIGE","PLUIE"],["LION","LOUP"],
+  ["MOTO","VOITURE"],["FRAISE","CERISE"],["DRAGON","DINOSAURE"]
 ];
 
-/* NAVIGATION */
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(screen => {
-    screen.classList.toggle("active", screen.id === id);
-  });
+const VOTE_QUESTIONS = [
+  "Qui survivrait le plus longtemps sur une île déserte ?",
+  "Qui pourrait devenir célèbre du jour au lendemain ?",
+  "Qui arriverait le plus souvent en retard ?",
+  "Qui serait le meilleur détective ?",
+  "Qui rirait dans une situation sérieuse ?",
+  "Qui dépenserait un million d'euros le plus vite ?",
+  "Qui pourrait se perdre avec un GPS ?",
+  "Qui deviendrait célèbre sur Internet ?",
+  "Qui oublierait son propre anniversaire ?",
+  "Qui pourrait devenir président du groupe ?",
+  "Qui est le plus compétitif ?",
+  "Qui pourrait partir en voyage sans rien préparer ?"
+];
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
+const QUIZ = [
+  {q:"Combien de côtés possède un hexagone ?",a:"6"},
+  {q:"Quelle planète est surnommée la planète rouge ?",a:"mars"},
+  {q:"Combien font 9 × 8 ?",a:"72"},
+  {q:"Quel est le plus grand animal du monde ?",a:"baleine bleue"},
+  {q:"Combien de minutes dans une heure ?",a:"60"},
+  {q:"Quelle est la capitale de l'Italie ?",a:"rome"},
+  {q:"Combien de jours dans une année bissextile ?",a:"366"},
+  {q:"Quel gaz les plantes absorbent-elles principalement ?",a:"dioxyde de carbone"},
+  {q:"Combien de couleurs compte généralement un arc-en-ciel ?",a:"7"}
+];
 
-function notice(id, message) {
-  const element = $(id);
-  if (!element) return;
+const TRUE_FALSE = [
+  {q:"Les pieuvres ont trois cœurs.",a:"vrai"},
+  {q:"La Terre possède deux lunes naturelles.",a:"faux"},
+  {q:"Un triangle possède trois côtés.",a:"vrai"},
+  {q:"Les chauves-souris sont des oiseaux.",a:"faux"},
+  {q:"La lumière voyage plus vite que le son.",a:"vrai"},
+  {q:"Les araignées sont des insectes.",a:"faux"},
+  {q:"Le Soleil est une planète.",a:"faux"},
+  {q:"L'eau pure gèle vers 0 °C à pression normale.",a:"vrai"}
+];
 
-  element.textContent = message;
-  element.classList.add("show");
-}
+const MYSTERIES = [
+  {q:"Je suis jaune, courbé et les singes m'aiment. Qui suis-je ?",a:"banane"},
+  {q:"J'ai des aiguilles mais je ne couds pas. Qui suis-je ?",a:"horloge"},
+  {q:"Plus je sèche, plus je deviens mouillé. Qui suis-je ?",a:"serviette"},
+  {q:"J'ai des dents mais je ne mange pas. Qui suis-je ?",a:"peigne"},
+  {q:"Je monte et descends sans bouger. Qui suis-je ?",a:"escalier"}
+];
 
-function clearNotice(id) {
-  const element = $(id);
-  if (!element) return;
+const TOPICS = ["Nourriture","Jeux vidéo","Animaux","Films","Vacances","École","Sport","Internet","Musique","Objets du quotidien"];
 
-  element.textContent = "";
-  element.classList.remove("show");
-}
-
-function setBusy(value) {
-  busy = value;
-
-  document.querySelectorAll("form button[type='submit']").forEach(button => {
-    button.disabled = value;
-  });
-
-  const startButton = $("startButton");
-  if (startButton) {
-    startButton.disabled = value || !amHost();
-  }
-}
-
-function normalizePseudo(value) {
-  return value.trim().replace(/\s+/g, " ").slice(0, 20);
-}
-
-function normalizeCode(value) {
-  return value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clean = s => String(s || "").trim().replace(/\s+/g," ").slice(0,100);
+const normalizeCode = s => s.trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+const normalizeName = s => s.trim().replace(/\s+/g," ").slice(0,20);
 
 function randomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const random = new Uint32Array(6);
-
-  crypto.getRandomValues(random);
-
-  return Array.from(
-    random,
-    number => chars[number % chars.length]
-  ).join("");
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return [...bytes].map(n => chars[n % chars.length]).join("");
 }
 
-/* IDENTIFIANT DU SALON */
-async function roomDocumentId(code, password) {
-  const data = new TextEncoder().encode(`${code}:${password}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-
-  return Array.from(new Uint8Array(digest))
-    .map(byte => byte.toString(16).padStart(2, "0"))
-    .join("");
+async function roomDocumentId(code,password) {
+  const bytes = new TextEncoder().encode(`${code}:${password}`);
+  const hash = await crypto.subtle.digest("SHA-256",bytes);
+  return [...new Uint8Array(hash)].map(n => n.toString(16).padStart(2,"0")).join("");
 }
 
-/* GESTION DES JOUEURS */
-function getPlayers() {
-  const players = roomData?.players;
+function say(id,msg) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add("show");
+}
+function clearSay(id) {
+  const el = $(id);
+  if (el) { el.textContent = ""; el.classList.remove("show"); }
+}
+function setBusy(value) {
+  busy = value;
+  document.querySelectorAll("form button[type=submit]").forEach(b => b.disabled = value);
+}
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active",s.id === id));
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function allPlayers() {
+  const p = room?.players || {};
+  return Array.isArray(p) ? p.filter(Boolean) : Object.values(p);
+}
+function isHost() { return !!user && room?.hostUid === user.uid; }
+function isMember() { return allPlayers().some(p => p.uid === user?.uid); }
+function currentScores() { return room?.scores || {}; }
+function modeName(mode) {
+  return ({
+    imposteur:"IMPOSTEUR", vote:"VOTE DU GROUPE", association:"ASSOCIATION DE MOTS",
+    quiz:"QUIZ EXPRESS","vrai-faux":"VRAI OU FAUX",mystere:"MOT MYSTÈRE"
+  })[mode] || "JEU";
+}
+function randUidPlayer() { return pick(allPlayers()); }
 
-  if (!players) return [];
+function makeGame(mode,round,maxRounds) {
+  const people = allPlayers();
+  const pair = pick(WORD_PAIRS), impostor = randUidPlayer();
+  const quiz = pick(QUIZ), truth = pick(TRUE_FALSE), mystery = pick(MYSTERIES);
+  const votePrompt = pick(VOTE_QUESTIONS), topic = pick(TOPICS);
+  const words = {};
 
-  if (Array.isArray(players)) {
-    return players.filter(Boolean);
+  people.forEach(p => {
+    if (mode === "imposteur") words[p.uid] = p.uid === impostor.uid ? pair[1] : pair[0];
+    else if (mode === "association") words[p.uid] = topic;
+    else if (mode === "quiz") words[p.uid] = quiz.q;
+    else if (mode === "vrai-faux") words[p.uid] = truth.q;
+    else if (mode === "mystere") words[p.uid] = mystery.q;
+    else words[p.uid] = votePrompt;
+  });
+
+  let title = "", description = "", prompt = "", phase = "answer", correctAnswer = "";
+
+  if (mode === "imposteur") {
+    title = "Mémorise ton mot secret";
+    description = "Un seul joueur possède un mot différent. Ne le révèle pas.";
+    phase = "reveal";
+  } else if (mode === "vote") {
+    title = "Qui est le plus susceptible de… ?";
+    description = "Vote pour le joueur correspondant à la question.";
+    prompt = votePrompt;
+    phase = "vote";
+  } else if (mode === "association") {
+    title = "Association de mots";
+    description = "Propose un mot lié au thème. Un mot déjà utilisé devient gris.";
+    prompt = `Thème : ${topic}`;
+  } else if (mode === "quiz") {
+    title = "Quiz express";
+    description = "Réponds correctement pour gagner 2 points.";
+    prompt = quiz.q; correctAnswer = quiz.a;
+  } else if (mode === "vrai-faux") {
+    title = "Vrai ou faux ?";
+    description = "Réponds par vrai ou faux.";
+    prompt = truth.q; correctAnswer = truth.a;
+  } else if (mode === "mystere") {
+    title = "Mot mystère";
+    description = "Trouve la réponse à cette énigme.";
+    prompt = mystery.q; correctAnswer = mystery.a;
   }
 
-  return Object.values(players);
+  return {
+    mode, round, phase, title, description, prompt, words,
+    impostorUid: mode === "imposteur" ? impostor.uid : "",
+    correctAnswer, entries:{}, votes:{}, usedWords:{},
+    createdAt: Date.now(), maxRounds
+  };
 }
 
-function amHost() {
-  return roomData?.hostUid === currentUser?.uid;
-}
-
-function amMember() {
-  return getPlayers().some(player => player.uid === currentUser?.uid);
-}
-
-function getMyPlayer() {
-  return getPlayers().find(player => player.uid === currentUser?.uid);
-}
-
-function safeText(value) {
-  return String(value ?? "");
-}
-
-/* AFFICHAGE DES JOUEURS */
-function renderPlayers() {
-  const list = $("playerList");
-  if (!list) return;
-
-  list.replaceChildren();
-
-  const players = getPlayers();
-
-  if (!players.length) {
-    const li = document.createElement("li");
-    li.textContent = "Aucun joueur pour le moment.";
-    list.appendChild(li);
-    return;
+async function initialize() {
+  try {
+    const result = await signInAnonymously(auth);
+    user = result.user;
+  } catch (error) {
+    console.error(error);
+    alert("Connexion Firebase impossible. Active Authentication > Sign-in method > Anonymous.");
   }
+}
+await initialize();
 
-  players.forEach(player => {
-    const li = document.createElement("li");
+/* CRÉATION */
+$("createForm").addEventListener("submit",async e => {
+  e.preventDefault();
+  if (busy || !user) return;
+  const name = normalizeName($("createPseudo").value);
+  const password = $("createPassword").value;
+  clearSay("createNotice");
 
-    const name = document.createElement("span");
-    name.textContent = safeText(player.pseudo);
+  if (!name) return say("createNotice","Entre un pseudo.");
+  if (password.length < 4) return say("createNotice","Le mot de passe doit contenir au moins 4 caractères.");
 
-    const label = document.createElement("span");
-    label.className = "host-label";
-    label.textContent =
-      player.uid === roomData.hostUid ? "HÔTE" : "JOUEUR";
+  setBusy(true);
+  try {
+    for (let i=0;i<8;i++) {
+      const code = randomCode();
+      const id = await roomDocumentId(code,password);
+      const roomRef = ref(db,`rooms/${id}`);
+      const result = await runTransaction(roomRef,current => {
+        if (current !== null) return;
+        return {
+          code, hostUid:user.uid,
+          players:{[user.uid]:{uid:user.uid,pseudo:name}},
+          scores:{[user.uid]:0}, maxRounds:5,
+          createdAt:Date.now(), game:{phase:"lobby"}
+        };
+      });
+      if (!result.committed) continue;
+      roomId=id; roomCode=code; pseudo=name;
+      listenRoom();
+      return;
+    }
+    throw new Error("Impossible de générer un code. Réessaie.");
+  } catch(error) {
+    console.error("Création :",error);
+    say("createNotice",friendlyError(error));
+  } finally { setBusy(false); }
+});
 
-    li.append(name, label);
-    list.appendChild(li);
+/* REJOINDRE */
+$("joinForm").addEventListener("submit",async e => {
+  e.preventDefault();
+  if (busy || !user) return;
+  const code=normalizeCode($("joinCode").value);
+  const name=normalizeName($("joinPseudo").value);
+  const password=$("joinPassword").value;
+  clearSay("joinNotice");
+
+  if (code.length!==6 || !name || !password)
+    return say("joinNotice","Vérifie le code, le pseudo et le mot de passe.");
+
+  setBusy(true);
+  try {
+    const id=await roomDocumentId(code,password);
+    const roomRef=ref(db,`rooms/${id}`);
+    const snapshot=await get(roomRef);
+    const data=snapshot.val();
+
+    if (!data || data.code!==code) throw new Error("Code ou mot de passe incorrect.");
+
+    const playersRef=ref(db,`rooms/${id}/players`);
+    const joined=await runTransaction(playersRef,current => {
+      const p=current || {};
+      if (!p[user.uid] && Object.keys(p).length>=12) return;
+      return {...p,[user.uid]:{uid:user.uid,pseudo:name}};
+    });
+
+    if (!joined.committed) throw new Error("Salon complet ou accès refusé.");
+    const fresh=await get(roomRef);
+    if (!fresh.exists() || !fresh.val()?.players?.[user.uid])
+      throw new Error("Le joueur n'a pas été enregistré.");
+
+    await update(ref(db,`rooms/${id}/scores`),{[user.uid]:data.scores?.[user.uid] || 0});
+    roomId=id; roomCode=code; pseudo=name;
+    listenRoom();
+  } catch(error) {
+    console.error("Rejoindre :",error);
+    say("joinNotice",friendlyError(error));
+  } finally { setBusy(false); }
+});
+
+function listenRoom() {
+  if (stopListening) stopListening();
+  stopListening=onValue(ref(db,`rooms/${roomId}`),snapshot => {
+    if (!snapshot.exists()) {
+      say("lobbyNotice","Ce salon n'existe plus.");
+      return;
+    }
+    room=snapshot.val();
+    if (!isMember()) {
+      say("lobbyNotice","Tu ne fais plus partie de ce salon.");
+      return;
+    }
+    renderRoom();
+  },error => {
+    console.error(error);
+    say("lobbyNotice",friendlyError(error));
   });
 }
 
 /* AFFICHAGE DU SALON */
 function renderRoom() {
-  if (!roomData) return;
-
-  $("displayCode").textContent = currentRoomCode || "------";
+  $("displayCode").textContent=roomCode || room.code || "------";
+  $("hostSettings").classList.toggle("hidden",!isHost());
+  $("lobbyDescription").textContent=isHost()
+    ?"Tu es l'hôte. Choisis les règles et lance quand tout le monde est prêt."
+    :"Tu as rejoint le salon. Seul l'hôte peut démarrer la partie.";
   renderPlayers();
 
-  const startButton = $("startButton");
-
-  if (startButton) {
-    startButton.style.display = amHost() ? "block" : "none";
-    startButton.disabled = busy || !amHost();
-  }
-
-  $("lobbyDescription").textContent = amHost()
-    ? "Tu es l'hôte. Lance la partie quand au moins deux joueurs sont présents."
-    : "Tu as rejoint le salon. Attends que l'hôte lance la partie.";
-
-  if (roomData.game?.phase && roomData.game.phase !== "lobby") {
-    renderGame();
+  if (room.game && room.game.phase!=="lobby") {
     showScreen("gameScreen");
-  } else {
-    showScreen("lobbyScreen");
+    renderGame();
+  } else showScreen("lobbyScreen");
+}
+function renderPlayers() {
+  const list=$("playerList");
+  list.replaceChildren();
+  const people=allPlayers();
+  $("playerCount").textContent=`${people.length}/12`;
+  if (!people.length) {
+    const li=document.createElement("li"); li.textContent="En attente de joueurs…"; list.append(li); return;
   }
+  people.forEach(p => {
+    const li=document.createElement("li");
+    const n=document.createElement("span"); n.textContent=p.pseudo;
+    const tag=document.createElement("span"); tag.className="host-label";
+    tag.textContent=p.uid===room.hostUid?"HÔTE":`${currentScores()[p.uid]||0} PTS`;
+    li.append(n,tag); list.append(li);
+  });
 }
 
-/* AFFICHAGE DU JEU */
+/* DÉMARRER, HÔTE UNIQUEMENT */
+$("startButton").addEventListener("click",async () => {
+  if (!isHost() || busy) return;
+  if (allPlayers().length<2) return say("lobbyNotice","Il faut au moins 2 joueurs.");
+  const mode=$("gameMode").value;
+  const maxRounds=Number($("roundCount").value);
+  setBusy(true);
+  try {
+    const scoreMap={};
+    allPlayers().forEach(p=>scoreMap[p.uid]=0);
+    const game=makeGame(mode,1,maxRounds);
+    await update(ref(db,`rooms/${roomId}`),{
+      maxRounds,scores:scoreMap,game
+    });
+  } catch(error) {
+    say("lobbyNotice",friendlyError(error));
+  } finally { setBusy(false); }
+});
+
+/* TIMER LOCAL, SYNCHRONISÉ SUR L'HEURE DE DÉBUT */
+function startTimer(game) {
+  if (timerInterval) clearInterval(timerInterval);
+  const tick=()=>{
+    const elapsed=Math.floor((Date.now()-(game.phaseStartedAt||Date.now()))/1000);
+    const left=Math.max(0,10-elapsed);
+    $("timerNumber").textContent=String(left);
+    if (left===0) {
+      clearInterval(timerInterval); timerInterval=null;
+      if (isHost() && game.phase==="reveal") hostNext();
+    }
+  };
+  tick();
+  timerInterval=setInterval(tick,250);
+}
+
 function renderGame() {
-  const game = roomData?.game;
+  const game=room?.game;
   if (!game) return;
+  $("modeLabel").textContent=`MODE ${modeName(game.mode)}`;
+  $("roundLabel").textContent=`MANCHE ${game.round}/${room.maxRounds||game.maxRounds||5}`;
+  $("secretWord").textContent=game.words?.[user.uid] || "••••••";
+  $("gameTitle").textContent=game.title||"La manche";
+  $("gameDescription").textContent=game.description||"";
+  $("promptText").textContent=game.prompt||"";
+  $("promptCard").classList.toggle("hidden",!game.prompt);
+  $("secretCard").classList.toggle("hidden",game.mode!=="imposteur");
+  $("actionForm").classList.add("hidden");
+  $("hostGameControls").classList.add("hidden");
+  $("returnButton").classList.add("hidden");
+  clearSay("gameNotice");
 
-  $("answerArea").style.display = "none";
-  $("guessArea").style.display = "none";
-  clearNotice("gameNotice");
-
-  if (game.phase === "answer") {
-    if (game.answererUid === currentUser.uid) {
-      $("gameTitle").textContent = "À toi de choisir !";
-
-      $("gameDescription").textContent =
-        "Lis la question secrète et choisis un joueur dans la liste.";
-
-      $("secretQuestion").textContent = game.question || "";
-      $("answerArea").style.display = "block";
-    } else {
-      $("gameTitle").textContent = "Une réponse se prépare…";
-
-      $("gameDescription").textContent =
-        "Un joueur a reçu une question secrète. Attends sa réponse.";
+  if (game.phase==="reveal") {
+    $("phaseLabel").textContent="MÉMORISE TON MOT";
+    $("timerDescription").textContent="Tu as 10 secondes pour mémoriser ton mot secret.";
+    if (lastTimerPhase!==`${game.round}-reveal-${game.phaseStartedAt}`) {
+      lastTimerPhase=`${game.round}-reveal-${game.phaseStartedAt}`;
+      startTimer(game);
     }
-  } else if (game.phase === "guess") {
-    $("gameTitle").textContent = "Devine la question";
-
-    $("gameDescription").textContent =
-      "Un joueur a été choisi. Quelle question a-t-il reçue ?";
-
-    $("shownAnswer").textContent =
-      `La personne choisie : ${game.answer || "..."}`;
-
-    $("guessArea").style.display = "block";
-  } else if (game.phase === "result") {
-    $("gameTitle").textContent = "Fin de la manche";
-
-    $("gameDescription").textContent =
-      `Question : ${game.question || "Non disponible"}`;
-
-    notice(
-      "gameNotice",
-      `Réponse : ${game.answer || "Non disponible"}. Tu peux retourner au salon.`
-    );
+    if (isHost()) {
+      $("hostGameControls").classList.remove("hidden");
+      $("nextButton").textContent="TERMINER LES 10 SECONDES ↗";
+    }
   } else {
-    $("gameTitle").textContent = "La partie est prête";
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval=null;
+    $("timerNumber").textContent="•";
+  }
 
-    $("gameDescription").textContent =
-      "Attends que l'hôte lance une manche.";
+  if (game.phase==="clues") {
+    $("phaseLabel").textContent="PLACE AUX INDICES";
+    $("timerDescription").textContent="Donne un indice sans révéler directement ton mot.";
+    configureAction("Ton indice","Un mot seulement","ENVOYER L'INDICE");
+  } else if (game.phase==="vote") {
+    $("phaseLabel").textContent="À VOUS DE VOTER";
+    $("timerDescription").textContent="Écris le pseudo exact du joueur. Pas de vote pour soi.";
+    configureAction("Ton vote","Pseudo du joueur","VOTER");
+  } else if (game.phase==="answer") {
+    $("phaseLabel").textContent="À TOI DE JOUER";
+    $("timerDescription").textContent="Envoie ta réponse.";
+    configureAction("Ta réponse","Écris ta réponse","VALIDER");
+  } else if (game.phase==="result") {
+    $("phaseLabel").textContent="RÉSULTATS";
+    $("timerDescription").textContent="Les points ont été calculés.";
+    $("gameTitle").textContent=game.resultTitle||"Manche terminée";
+    $("gameDescription").textContent=game.resultText||"";
+    if (isHost()) {
+      $("hostGameControls").classList.remove("hidden");
+      $("nextButton").textContent=game.round>=(room.maxRounds||5)?"VOIR LE PODIUM ↗":"MANCHE SUIVANTE ↗";
+    }
+  } else if (game.phase==="finished") {
+    $("phaseLabel").textContent="PARTIE TERMINÉE";
+    $("timerDescription").textContent="Classement final";
+    $("gameTitle").textContent="LE PODIUM.";
+    $("gameDescription").textContent="Bravo à tous les joueurs !";
+    $("returnButton").classList.remove("hidden");
+  }
+
+  renderEntries();
+  renderScores();
+}
+function configureAction(label,placeholder,buttonText) {
+  const game=room.game;
+  const existing=game.entries?.[user.uid] || game.votes?.[user.uid];
+  const canPlay=game.phase==="vote" ? !game.votes?.[user.uid] : !game.entries?.[user.uid];
+  if (!canPlay) {
+    $("actionForm").classList.add("hidden");
+    say("gameNotice","Ta réponse a déjà été enregistrée. Attends les autres joueurs.");
+    return;
+  }
+  $("actionForm").classList.remove("hidden");
+  $("actionLabel").textContent=label;
+  $("actionInput").placeholder=placeholder;
+  $("actionButton").textContent=buttonText;
+  $("actionInput").value="";
+}
+function renderEntries() {
+  const list=$("entryList"); list.replaceChildren();
+  const game=room?.game; if (!game) return;
+  const entries=Object.values(game.entries||{});
+  const used=game.usedWords||{};
+  $("entryCount").textContent=String(entries.length);
+  if (!entries.length) {
+    const li=document.createElement("li"); li.textContent="Aucune réponse pour le moment."; list.append(li);
+  }
+  entries.forEach(e=>{
+    const li=document.createElement("li"); li.className="entry";
+    const key=String(e.value||"").toLowerCase();
+    if (used[key]) li.classList.add("used");
+    li.textContent=`${e.pseudo} : ${e.value}`;
+    if (used[key]) li.classList.add("used");
+    list.append(li);
+  });
+  if (game.phase==="vote" && game.mode==="imposteur") {
+    const count=Object.keys(game.votes||{}).length;
+    const li=document.createElement("li"); li.textContent=`Votes reçus : ${count}/${allPlayers().length}`;
+    list.append(li);
   }
 }
-
-/* CONNEXION FIREBASE */
-async function initializeConnection() {
-  try {
-    const credential = await signInAnonymously(auth);
-    currentUser = credential.user;
-  } catch (error) {
-    console.error("Erreur de connexion Firebase :", error);
-
-    document.querySelectorAll(".primary").forEach(button => {
-      button.disabled = true;
-    });
-
-    alert(
-      "Connexion Firebase impossible. Active l'authentification anonyme dans Firebase > Authentication > Sign-in method."
-    );
-  }
+function renderScores() {
+  const list=$("scoreList"); list.replaceChildren();
+  allPlayers().sort((a,b)=>(currentScores()[b.uid]||0)-(currentScores()[a.uid]||0)).forEach((p,i)=>{
+    const li=document.createElement("li");
+    const n=document.createElement("span"); n.textContent=`${i+1}. ${p.pseudo}`;
+    const pts=document.createElement("strong"); pts.style.color="var(--accent)";
+    pts.textContent=`${currentScores()[p.uid]||0} pts`;
+    li.append(n,pts); list.append(li);
+  });
 }
 
-await initializeConnection();
-
-/* CRÉER UN SALON */
-$("createForm").addEventListener("submit", async event => {
-  event.preventDefault();
-
-  if (busy) return;
-
-  if (!currentUser) {
-    notice("createNotice", "Connexion Firebase impossible. Recharge la page.");
-    return;
-  }
-
-  const pseudo = normalizePseudo($("createPseudo").value);
-  const password = $("createPassword").value;
-
-  clearNotice("createNotice");
-
-  if (!pseudo) {
-    notice("createNotice", "Entre un pseudo.");
-    return;
-  }
-
-  if (password.length < 4) {
-    notice(
-      "createNotice",
-      "Le mot de passe doit contenir au moins 4 caractères."
-    );
-    return;
-  }
-
-  setBusy(true);
-
+/* ENVOYER UNE RÉPONSE OU UN VOTE */
+$("actionForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if (busy || !room?.game) return;
+  const game=room.game, value=clean($("actionInput").value);
+  if (!value) return say("gameNotice","Écris une réponse avant de valider.");
+  setBusy(true); clearSay("gameNotice");
   try {
-    let created = false;
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const code = randomCode();
-      const roomId = await roomDocumentId(code, password);
-      const roomRef = ref(db, `rooms/${roomId}`);
-
-      const existing = await get(roomRef);
-
-      if (existing.exists()) continue;
-
-      const room = {
-        code,
-        hostUid: currentUser.uid,
-        players: {
-          [currentUser.uid]: {
-            uid: currentUser.uid,
-            pseudo
-          }
-        },
-        createdAt: serverTimestamp(),
-        game: {
-          phase: "lobby",
-          round: 0
-        }
-      };
-
-      await set(roomRef, room);
-
-      currentPseudo = pseudo;
-      currentRoomCode = code;
-      currentRoomId = roomId;
-
-      created = true;
-      listenToRoom();
-      break;
-    }
-
-    if (!created) {
-      throw new Error("Impossible de créer le salon. Réessaie.");
-    }
-  } catch (error) {
-    console.error("Erreur création salon :", error);
-    notice("createNotice", firebaseMessage(error));
-  } finally {
-    setBusy(false);
-    if (roomData) renderRoom();
-  }
+    if (game.phase==="vote") await submitVote(value);
+    else if (game.phase==="answer" || game.phase==="clues") await submitEntry(value);
+    else throw new Error("Cette action n'est pas disponible.");
+    $("actionInput").value="";
+    say("gameNotice","Réponse envoyée !");
+  } catch(error) {
+    say("gameNotice",friendlyError(error));
+  } finally { setBusy(false); }
 });
 
-/* REJOINDRE UN SALON */
-$("joinForm").addEventListener("submit", async event => {
-  event.preventDefault();
-
-  if (busy) return;
-
-  if (!currentUser) {
-    notice("joinNotice", "Connexion Firebase impossible. Recharge la page.");
-    return;
+async function submitEntry(value) {
+  const game=room.game;
+  if (game.entries?.[user.uid]) throw new Error("Tu as déjà répondu.");
+  if (game.mode==="association") {
+    const key=value.toLowerCase();
+    if (game.usedWords?.[key]) throw new Error("Ce mot a déjà été utilisé. Choisis-en un autre.");
   }
 
-  const code = normalizeCode($("joinCode").value);
-  const pseudo = normalizePseudo($("joinPseudo").value);
-  const password = $("joinPassword").value;
+  const entry={uid:user.uid,pseudo,value,at:Date.now()};
+  const entryRef=ref(db,`rooms/${roomId}/game/entries/${user.uid}`);
+  const result=await runTransaction(entryRef,current=>current===null?entry:undefined);
+  if (!result.committed) throw new Error("Ta réponse est déjà enregistrée.");
 
-  clearNotice("joinNotice");
-
-  if (code.length !== 6 || !pseudo || !password) {
-    notice("joinNotice", "Vérifie le code, le pseudo et le mot de passe.");
-    return;
+  if (game.mode==="association") {
+    await set(ref(db,`rooms/${roomId}/game/usedWords/${value.toLowerCase().replace(/[.#$\[\]/]/g,"_")}`),true);
   }
-
-  setBusy(true);
-
-  try {
-    const roomId = await roomDocumentId(code, password);
-    const roomRef = ref(db, `rooms/${roomId}`);
-
-    /* Vérifier que le salon existe */
-    const snapshot = await get(roomRef);
-
-    if (!snapshot.exists() || snapshot.val()?.code !== code) {
-      throw new Error("Code ou mot de passe incorrect.");
-    }
-
-    /* Ajouter le joueur dans la branche players uniquement */
-    const playersRef = ref(db, `rooms/${roomId}/players`);
-
-    const result = await runTransaction(playersRef, currentPlayers => {
-      const players = currentPlayers || {};
-      const existingPlayer = players[currentUser.uid];
-
-      if (!existingPlayer && Object.keys(players).length >= 12) {
-        return;
-      }
-
-      return {
-        ...players,
-        [currentUser.uid]: {
-          uid: currentUser.uid,
-          pseudo
-        }
-      };
-    });
-
-    if (!result.committed) {
-      const latest = await get(roomRef);
-
-      if (!latest.exists() || latest.val()?.code !== code) {
-        throw new Error("Code ou mot de passe incorrect.");
-      }
-
-      const players = latest.val()?.players || {};
-
-      if (!players[currentUser.uid] && Object.keys(players).length >= 12) {
-        throw new Error("Ce salon est complet (12 joueurs maximum).");
-      }
-
-      throw new Error(
-        "Firebase a refusé l'ajout du joueur. Vérifie les règles de la base."
-      );
-    }
-
-    /* Vérification finale avant d'ouvrir le salon */
-    const updatedRoom = await get(roomRef);
-
-    if (!updatedRoom.exists()) {
-      throw new Error("Le salon n'existe plus.");
-    }
-
-    const data = updatedRoom.val();
-
-    if (!data.players?.[currentUser.uid]) {
-      throw new Error("Le joueur n'a pas été enregistré dans le salon.");
-    }
-
-    currentPseudo = pseudo;
-    currentRoomCode = code;
-    currentRoomId = roomId;
-
-    listenToRoom();
-  } catch (error) {
-    console.error("Erreur rejoindre salon :", error);
-    notice("joinNotice", firebaseMessage(error));
-  } finally {
-    setBusy(false);
-    if (roomData) renderRoom();
-  }
-});
-
-/* SYNCHRONISATION EN TEMPS RÉEL */
-function listenToRoom() {
-  if (unsubscribeRoom) unsubscribeRoom();
-
-  const roomRef = ref(db, `rooms/${currentRoomId}`);
-
-  unsubscribeRoom = onValue(
-    roomRef,
-    snapshot => {
-      if (!snapshot.exists()) {
-        notice("lobbyNotice", "Ce salon n'existe plus.");
-        return;
-      }
-
-      roomData = snapshot.val();
-
-      if (!amMember()) {
-        notice("lobbyNotice", "Tu n'es plus membre de ce salon.");
-        return;
-      }
-
-      renderRoom();
-    },
-    error => {
-      console.error("Erreur synchronisation :", error);
-      notice("lobbyNotice", firebaseMessage(error));
-    }
-  );
+  await maybeFinish();
+}
+async function submitVote(value) {
+  const target=allPlayers().find(p=>p.pseudo.toLowerCase()===value.toLowerCase());
+  if (!target) throw new Error("Pseudo introuvable. Vérifie l'orthographe.");
+  if (target.uid===user.uid) throw new Error("Tu ne peux pas voter pour toi-même.");
+  const voteRef=ref(db,`rooms/${roomId}/game/votes/${user.uid}`);
+  const result=await runTransaction(voteRef,current=>current===null?{
+    uid:user.uid,targetUid:target.uid,targetPseudo:target.pseudo
+  }:undefined);
+  if (!result.committed) throw new Error("Tu as déjà voté.");
+  await maybeFinish();
+}
+async function maybeFinish() {
+  const snap=await get(ref(db,`rooms/${roomId}/game`));
+  if (!snap.exists()) return;
+  const game=snap.val(), people=allPlayers();
+  const count=game.phase==="vote"?Object.keys(game.votes||{}).length:Object.keys(game.entries||{}).length;
+  if (count>=people.length && isHost()) await scoreAndFinish(game);
 }
 
-/* LANCER UNE MANCHE : HÔTE UNIQUEMENT */
-window.startGame = async function () {
-  if (!roomData || !amHost() || busy) return;
-
-  const players = getPlayers();
-
-  if (players.length < 2) {
-    notice("lobbyNotice", "Il faut au moins deux joueurs pour commencer.");
-    return;
-  }
-
-  setBusy(true);
-
+/* CALCUL DES POINTS */
+async function scoreAndFinish(game) {
+  if (!isHost() || scoring || !game || game.phase==="result" || game.phase==="finished") return;
+  scoring=true;
   try {
-    const answerer =
-      players[Math.floor(Math.random() * players.length)];
-
-    const question =
-      QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-
-    const nextRound = (roomData.game?.round || 0) + 1;
-
-    await update(ref(db, `rooms/${currentRoomId}/game`), {
-      phase: "answer",
-      round: nextRound,
-      answererUid: answerer.uid,
-      question,
-      answer: "",
-      chosenUid: "",
-      guesses: {}
-    });
-  } catch (error) {
-    console.error("Erreur lancement partie :", error);
-    notice("lobbyNotice", firebaseMessage(error));
-  } finally {
-    setBusy(false);
-    if (roomData) renderRoom();
-  }
-};
-
-/* RÉPONDRE À LA QUESTION */
-$("answerForm").addEventListener("submit", async event => {
-  event.preventDefault();
-
-  const game = roomData?.game;
-
-  if (
-    busy ||
-    !game ||
-    game.phase !== "answer" ||
-    game.answererUid !== currentUser?.uid
-  ) {
-    return;
-  }
-
-  const answer = $("answerInput").value.trim();
-
-  if (!answer) {
-    notice("gameNotice", "Entre le pseudo choisi.");
-    return;
-  }
-
-  const chosen = getPlayers().find(
-    player => player.pseudo.toLowerCase() === answer.toLowerCase()
-  );
-
-  if (!chosen) {
-    notice("gameNotice", "Choisis un pseudo présent dans le salon.");
-    return;
-  }
-
-  setBusy(true);
-
-  try {
-    await update(ref(db, `rooms/${currentRoomId}/game`), {
-      phase: "guess",
-      answer: chosen.pseudo,
-      chosenUid: chosen.uid
-    });
-
-    $("answerInput").value = "";
-  } catch (error) {
-    console.error("Erreur réponse :", error);
-    notice("gameNotice", firebaseMessage(error));
-  } finally {
-    setBusy(false);
-  }
-});
-
-/* DEVINER LA QUESTION */
-$("guessForm").addEventListener("submit", async event => {
-  event.preventDefault();
-
-  if (
-    busy ||
-    !roomData?.game ||
-    roomData.game.phase !== "guess"
-  ) {
-    return;
-  }
-
-  const guess = $("guessInput").value.trim();
-
-  if (!guess) {
-    notice("gameNotice", "Écris ta supposition.");
-    return;
-  }
-
-  setBusy(true);
-
-  try {
-    const roomRef = ref(db, `rooms/${currentRoomId}`);
-
-    const transaction = await runTransaction(roomRef, data => {
-      if (!data || data.game?.phase !== "guess") {
-        return;
+    const people=allPlayers(), score={...currentScores()};
+    let title="MANCHE TERMINÉE", text="";
+    const entries=Object.values(game.entries||{}), votes=Object.values(game.votes||{});
+    if (game.mode==="imposteur") {
+      const tally={};
+      votes.forEach(v=>tally[v.targetUid]=(tally[v.targetUid]||0)+1);
+      const top=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+      const found=top.length>0 && top[0][0]===game.impostorUid && (top.length===1 || top[0][1]>(top[1][1]||0));
+      if (found) {
+        people.forEach(p=>{if(p.uid!==game.impostorUid)score[p.uid]=(score[p.uid]||0)+2;});
+        title="IMPOSTEUR DÉMASQUÉ !";
+        text=`L'imposteur était ${people.find(p=>p.uid===game.impostorUid)?.pseudo}. Les autres gagnent 2 points.`;
+      } else {
+        score[game.impostorUid]=(score[game.impostorUid]||0)+3;
+        title="L'IMPOSTEUR A GAGNÉ !";
+        text=`L'imposteur était ${people.find(p=>p.uid===game.impostorUid)?.pseudo}. Il gagne 3 points.`;
       }
-
-      const players = data.players || {};
-      const guesses = data.game.guesses || {};
-
-      if (!players[currentUser.uid]) return;
-      if (currentUser.uid === data.game.answererUid) return;
-      if (guesses[currentUser.uid]) return;
-
-      const updatedGuesses = {
-        ...guesses,
-        [currentUser.uid]: {
-          uid: currentUser.uid,
-          pseudo: currentPseudo,
-          guess
+    } else if (game.mode==="vote") {
+      const tally={}; votes.forEach(v=>tally[v.targetUid]=(tally[v.targetUid]||0)+1);
+      const top=Object.entries(tally).sort((a,b)=>b[1]-a[1]);
+      const winner=top.length && (top.length===1 || top[0][1]>(top[1][1]||0)) ? top[0][0] : null;
+      if (winner) score[winner]=(score[winner]||0)+2;
+      title="RÉSULTAT DU VOTE";
+      text=winner?`${people.find(p=>p.uid===winner)?.pseudo} gagne 2 points.`:"Égalité ! Personne ne gagne de points.";
+    } else if (["quiz","vrai-faux","mystere"].includes(game.mode)) {
+      let correct=0;
+      entries.forEach(e=>{
+        if(e.value.trim().toLowerCase()===String(game.correctAnswer).trim().toLowerCase()){
+          score[e.uid]=(score[e.uid]||0)+2; correct++;
         }
-      };
-
-      const eligiblePlayers = Object.values(players).filter(
-        player => player.uid !== data.game.answererUid
-      );
-
-      const allGuessed = eligiblePlayers.every(
-        player => Boolean(updatedGuesses[player.uid])
-      );
-
-      return {
-        ...data,
-        game: {
-          ...data.game,
-          guesses: updatedGuesses,
-          phase: allGuessed ? "result" : "guess"
-        }
-      };
-    });
-
-    if (!transaction.committed) {
-      throw new Error(
-        "Supposition déjà envoyée ou manche terminée. Réessaie."
-      );
+      });
+      title="RÉPONSES RÉVÉLÉES";
+      text=`${correct} bonne(s) réponse(s). Réponse : ${game.correctAnswer}.`;
+    } else if (game.mode==="association") {
+      const tally={};
+      entries.forEach(e=>tally[e.value.toLowerCase()]=(tally[e.value.toLowerCase()]||0)+1);
+      entries.forEach(e=>{if(tally[e.value.toLowerCase()]===1)score[e.uid]=(score[e.uid]||0)+1;});
+      title="ASSOCIATION TERMINÉE";
+      text="Chaque mot unique rapporte 1 point.";
     }
+    await update(ref(db,`rooms/${roomId}`),{
+      scores:score,
+      "game/phase":"result",
+      "game/resultTitle":title,
+      "game/resultText":text,
+      "game/scored":true
+    });
+  } finally { scoring=false; }
+}
 
-    $("guessInput").value = "";
-    notice("gameNotice", "Ta supposition a été envoyée !");
-  } catch (error) {
-    console.error("Erreur supposition :", error);
-    notice("gameNotice", firebaseMessage(error));
-  } finally {
-    setBusy(false);
-  }
-});
-
-/* COPIER LE CODE */
-window.copyRoomCode = async function () {
-  if (!currentRoomCode) return;
-
+/* CONTRÔLES HÔTE */
+$("nextButton").addEventListener("click",hostNext);
+async function hostNext() {
+  if (!isHost() || busy || !room?.game) return;
+  const game=room.game;
+  setBusy(true);
   try {
-    await navigator.clipboard.writeText(currentRoomCode);
-    notice("lobbyNotice", "Code copié !");
-  } catch {
-    notice("lobbyNotice", `Ton code : ${currentRoomCode}`);
-  }
-};
+    if (game.phase==="reveal") {
+      await update(ref(db,`rooms/${roomId}/game`),{
+        phase:"clues",phaseStartedAt:null,title:"Donne un indice",
+        description:"Décris ton mot sans le dire directement.",entries:{},votes:{}
+      });
+    } else if (game.phase==="clues") {
+      await update(ref(db,`rooms/${roomId}/game`),{
+        phase:"vote",title:"Qui est l'imposteur ?",
+        description:"Vote pour le joueur que tu soupçonnes.",entries:{},votes:{}
+      });
+    } else if (game.phase==="result") {
+      if (game.round >= (room.maxRounds||5)) {
+        await update(ref(db,`rooms/${roomId}/game`),{phase:"finished"});
+      } else {
+        const next=makeGame(game.mode,game.round+1,room.maxRounds||5);
+        await update(ref(db,`rooms/${roomId}`),{game:next});
+      }
+    } else if (["answer","vote"].includes(game.phase)) {
+      const snap=await get(ref(db,`rooms/${roomId}/game`));
+      await scoreAndFinish(snap.val());
+    }
+  } catch(error) {
+    say("gameNotice",friendlyError(error));
+  } finally { setBusy(false); }
+}
 
-/* QUITTER LE SALON */
-window.leaveRoom = function () {
-  if (unsubscribeRoom) unsubscribeRoom();
-
-  unsubscribeRoom = null;
-  currentRoomId = null;
-  currentRoomCode = null;
-  currentPseudo = "";
-  roomData = null;
-
-  clearNotice("lobbyNotice");
+/* COPIER, RETOUR, QUITTER */
+$("copyButton").addEventListener("click",async()=>{
+  try { await navigator.clipboard.writeText(roomCode); say("lobbyNotice","Code copié !"); }
+  catch { say("lobbyNotice",`Code du salon : ${roomCode}`); }
+});
+$("leaveLobby").addEventListener("click",leaveRoom);
+$("returnButton").addEventListener("click",async()=>{
+  if (!isHost()) return say("gameNotice","Seul l'hôte peut retourner au lobby.");
+  try { await update(ref(db,`rooms/${roomId}/game`),{phase:"lobby"}); }
+  catch(error) { say("gameNotice",friendlyError(error)); }
+});
+function leaveRoom() {
+  if (stopListening) stopListening();
+  if (timerInterval) clearInterval(timerInterval);
+  stopListening=null; timerInterval=null; roomId=null; roomCode=null; pseudo="";
+  room=null; lastTimerPhase=""; scoring=false;
   showScreen("homeScreen");
-};
-
-/* MESSAGES D'ERREUR */
-function firebaseMessage(error) {
-  const message = String(error?.message || "");
-  const code = String(error?.code || "");
-
-  if (message.includes("Code ou mot de passe incorrect.")) {
-    return "Code ou mot de passe incorrect.";
-  }
-
-  if (message.includes("Ce salon est complet")) {
-    return "Ce salon est complet (12 joueurs maximum).";
-  }
-
-  if (
-    code === "PERMISSION_DENIED" ||
-    code === "permission-denied" ||
-    message.includes("PERMISSION_DENIED")
-  ) {
-    return "Accès refusé. Vérifie les règles de Realtime Database.";
-  }
-
-  if (message.includes("Firebase a refusé l'ajout")) {
-    return message;
-  }
-
-  if (message.includes("network")) {
-    return "Problème de connexion Internet. Réessaie.";
-  }
-
-  return message || "Une erreur est survenue. Vérifie Firebase.";
 }
 
-/* NAVIGATION */
-window.showScreen = showScreen;
+function friendlyError(error) {
+  const code=error?.code||"";
+  if (code==="PERMISSION_DENIED" || code==="permission-denied")
+    return "Accès refusé par Firebase. Vérifie les règles de Realtime Database.";
+  if (code==="NETWORK_ERROR" || code==="unavailable")
+    return "Connexion impossible. Vérifie Internet et réessaie.";
+  if (error?.message) return error.message;
+  return "Une erreur est survenue. Vérifie la configuration Firebase.";
+}
+
+/* Le lancement est masqué chez les joueurs et vérifié dans le code. */
